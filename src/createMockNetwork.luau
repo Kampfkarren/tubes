@@ -9,6 +9,7 @@ local Context = require(DistributedNetworks.Context)
 local Types = require(DistributedNetworks.Types)
 local createMessageSignals = require(DistributedNetworks.createMessageSignals)
 local createQueuedSignal = require(DistributedNetworks.createQueuedSignal)
+local Signal = require(DistributedNetworks.Signal)
 
 local e = React.createElement
 
@@ -22,6 +23,7 @@ type Network = {
 	) -> Channel<ServerState, Event>,
 
 	localUserId: number,
+	ping: number,
 }
 
 type Channel<ServerState, Event> = {
@@ -33,12 +35,14 @@ type Channel<ServerState, Event> = {
 	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> (),
 
 	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: number) -> (),
+	onReceiveEvent: Signal.Signal<Event>,
 }
 
 local function createMockNetwork(): (Network, React.ComponentType<{
 	children: React.ReactNode,
 }>)
 	local network = {}
+	network.ping = 0
 	network.localUserId = if LocalPlayer then LocalPlayer.UserId else 0
 
 	local channels: { [string]: Channel<any, any> } = {}
@@ -61,14 +65,23 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			end,
 
 			sendEvent = function(self: Channel<ServerState, Event>, event: Event, userId: number?)
-				self.state = processEvent(self.state, event)
-				signals.receiveMessageSignal.fire(self.id, event, userId)
+				self.state = processEvent(self.state, event, userId)
+
+				task.delay(network.ping, function()
+					signals.receiveMessageSignal.fire(self.id, event, userId)
+				end)
 			end,
 
 			receiveEvent = function(self: Channel<ServerState, Event>, event: Event, nonce: number)
-				self.state = processEvent(self.state, event, network.localUserId)
-				signals.receiveMessageSuccessSignal.fire(self.id, nonce)
+				self.onReceiveEvent:Fire(event)
+
+				task.delay(network.ping, function()
+					self.state = processEvent(self.state, event, network.localUserId)
+					signals.receiveMessageSuccessSignal.fire(self.id, nonce)
+				end)
 			end,
+
+			onReceiveEvent = Signal.new(),
 		}
 
 		channels[channelId] = channel
