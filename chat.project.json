@@ -25,6 +25,15 @@
 			"Demo": {
 				"$path": "chat-demo/shared"
 			}
+		},
+		"ServerScriptService": {
+			"$path": "chat-demo/server"
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$path": "chat-demo/client"
+			}
 		}
 	}
 }

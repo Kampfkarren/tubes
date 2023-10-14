@@ -1,3 +1,4 @@
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DistributedNetworks = require(ReplicatedStorage.Packages.DistributedNetworks)
@@ -24,7 +25,7 @@ local function ChatWindow(props: {
 		local newDefaultState = table.clone(ServerState.defaultState)
 
 		newDefaultState.members = {
-			[userId] = {
+			[tostring(userId)] = {
 				name = "LocalPlayer",
 			},
 		}
@@ -62,6 +63,17 @@ local function ChatWindow(props: {
 		end
 	end
 
+	local topbarHeight, setTopbarHeight = React.useState(GuiService.TopbarInset.Height)
+	React.useEffect(function()
+		local connection = GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(function()
+			setTopbarHeight(GuiService.TopbarInset.Height)
+		end)
+
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
+
 	return e("Frame", {
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Size = UDim2.fromScale(1, 1),
@@ -69,7 +81,7 @@ local function ChatWindow(props: {
 		UIPadding = e("UIPadding", {
 			PaddingLeft = UDim.new(0, 8),
 			PaddingRight = UDim.new(0, 8),
-			PaddingTop = UDim.new(0, 8),
+			PaddingTop = UDim.new(0, 8 + topbarHeight),
 		}),
 
 		UIListLayout = e("UIListLayout", {

@@ -76,11 +76,11 @@ local function RemoteProvider(props: {
 		end
 	end, {})
 
-	local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: number, event: Event)
+	local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: string, event: Event)
 		local remoteEvent = remoteEventRef.current
 		assert(remoteEvent ~= nil, "Sending event to channel without the RemoteEvent being created yet")
 
-		error("NYI: Send event through remote event")
+		remoteEvent:FireServer(channelId, nonce, event)
 	end, {})
 
 	local context: Context.ContextType = {

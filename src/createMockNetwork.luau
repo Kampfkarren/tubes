@@ -32,7 +32,7 @@ type Channel<ServerState, Event> = {
 
 	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> (),
 
-	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: number) -> (),
+	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: string) -> (),
 	onReceiveEvent: Signal.Signal<Event>,
 }
 
@@ -45,18 +45,18 @@ local function createMessageSignals(): {
 
 	receiveMessageSignal: createQueuedSignal.QueuedSignal<
 		string, -- Channel ID
-		any, -- Event
-		number? -- User ID
+		number?, -- User ID
+		any -- Event
 	>,
 
 	receiveMessageErrorSignal: createQueuedSignal.QueuedSignal<
 		string, -- Channel ID
-		number -- Nonce
+		string -- Nonce
 	>,
 
 	receiveMessageSuccessSignal: createQueuedSignal.QueuedSignal<
 		string, -- Channel ID
-		number -- Nonce
+		string -- Nonce
 	>,
 }
 	return {
@@ -99,11 +99,11 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 				self.state = processEvent(self.state, event, userId)
 
 				task.delay(network.ping, function()
-					signals.receiveMessageSignal.fire(self.id, event, userId)
+					signals.receiveMessageSignal.fire(self.id, userId, event)
 				end)
 			end,
 
-			receiveEvent = function(self: Channel<ServerState, Event>, event: Event, nonce: number)
+			receiveEvent = function(self: Channel<ServerState, Event>, event: Event, nonce: string)
 				self.onReceiveEvent:Fire(event)
 
 				task.delay(network.ping, function()
@@ -140,7 +140,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			end)
 		end, {})
 
-		local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: number, event: Event)
+		local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: string, event: Event)
 			local channel = assert(channels[channelId], "Channel doesn't exist")
 			channel:receiveEvent(event, nonce)
 		end, {})

@@ -4,10 +4,11 @@ local React = require(DistributedNetworks.Parent.React)
 
 local Context = require(DistributedNetworks.Context)
 local Types = require(DistributedNetworks.Types)
+local nonceToString = require(DistributedNetworks.nonceToString)
 
 type PendingEvent<Event> = {
 	event: Event,
-	nonce: number,
+	nonce: string,
 }
 
 type NetworkState<ServerState, Event> = {
@@ -85,7 +86,7 @@ local function useChannel<ServerState, Event>(
 			end)
 		end)
 
-		local disconnectOnReceiveMessage = context.onReceiveMessageCallback(function(receiveChannelId, event, userId)
+		local disconnectOnReceiveMessage = context.onReceiveMessageCallback(function(receiveChannelId, userId, event)
 			if receiveChannelId ~= channelId then
 				return
 			end
@@ -153,9 +154,9 @@ local function useChannel<ServerState, Event>(
 
 	local nonceRef = React.useRef(0)
 	assert(nonceRef.current ~= nil, "Luau")
-	local nextNonce = React.useCallback(function(): number
+	local nextNonce = React.useCallback(function(): string
 		nonceRef.current += 1
-		return nonceRef.current
+		return nonceToString(nonceRef.current)
 	end, {})
 
 	-- Add this to the list of pending events, then send it to the server if one exists.

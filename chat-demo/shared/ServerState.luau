@@ -1,7 +1,7 @@
 export type ServerState = {
 	messages: { Message },
 	members: {
-		[number]: {
+		[string]: {
 			name: string,
 		},
 	},
@@ -19,7 +19,6 @@ export type Event = {
 } | {
 	type: "removeMember",
 	userId: number,
-	name: string,
 } | {
 	type: "chat",
 	contents: string,
@@ -42,26 +41,26 @@ function ServerState.process(state: ServerState, event: Event, userId: number?):
 
 		state = table.clone(state)
 		state.members = table.clone(state.members)
-		state.members[event.userId] = {
+		state.members[tostring(event.userId)] = {
 			name = event.name,
 		}
 		return state
 	elseif event.type == "removeMember" then
 		assert(userId == nil, "Client cannot send addMember")
-		assert(state.members[event.userId] ~= nil, "removeMember called for member that doesn't exist")
+		assert(state.members[tostring(event.userId)] ~= nil, "removeMember called for member that doesn't exist")
 
 		state = table.clone(state)
 		state.members = table.clone(state.members)
-		state.members[event.userId] = nil
+		state.members[tostring(event.userId)] = nil
 		return state
 	elseif event.type == "chat" then
 		assert(userId ~= nil, "Chat message sent without client ID")
-		assert(state.members[userId] ~= nil, "Chat message sent from unconnected client")
+		assert(state.members[tostring(userId)] ~= nil, "Chat message sent from unconnected client")
 
 		state = table.clone(state)
 		state.messages = table.clone(state.messages)
 		table.insert(state.messages, {
-			name = state.members[userId].name,
+			name = state.members[tostring(userId)].name,
 			contents = event.contents,
 		})
 		return state

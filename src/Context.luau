@@ -15,11 +15,11 @@ export type ContextType = {
 	initialStates: { [string]: any },
 
 	onInitialStateCallback: <ServerState>(callback: (channelId: string, serverState: ServerState) -> ()) -> Destructor,
-	onReceiveMessageCallback: <Event>(callback: (channelId: string, event: Event, userId: number?) -> ()) -> Destructor,
-	onReceiveMessageErrorCallback: (callback: (channelId: string, nonce: number) -> ()) -> Destructor,
-	onReceiveMessageSuccessCallback: (callback: (channelId: string, nonce: number) -> ()) -> Destructor,
+	onReceiveMessageCallback: <Event>(callback: (channelId: string, userId: number?, event: Event) -> ()) -> Destructor,
+	onReceiveMessageErrorCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
+	onReceiveMessageSuccessCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
 
-	sendEventToChannel: <Event>(channelId: string, nonce: number, event: Event) -> (),
+	sendEventToChannel: <Event>(channelId: string, nonce: string, event: Event) -> (),
 }
 
 local default: ContextType = {
