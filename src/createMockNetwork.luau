@@ -6,13 +6,11 @@ local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
 local React = require(DistributedNetworks.Parent.React)
 
 local Context = require(DistributedNetworks.Context)
-local Types = require(DistributedNetworks.Types)
-local createMessageSignals = require(DistributedNetworks.createMessageSignals)
-local createQueuedSignal = require(DistributedNetworks.createQueuedSignal)
 local Signal = require(DistributedNetworks.Signal)
+local Types = require(DistributedNetworks.Types)
+local createQueuedSignal = require(DistributedNetworks.createQueuedSignal)
 
 local e = React.createElement
-
 local LocalPlayer = Players.LocalPlayer
 
 type Network = {
@@ -37,6 +35,37 @@ type Channel<ServerState, Event> = {
 	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: number) -> (),
 	onReceiveEvent: Signal.Signal<Event>,
 }
+
+-- Trying to simulate RemoteEvents being fired before the UI mounts
+local function createMessageSignals(): {
+	initialStateSignal: createQueuedSignal.QueuedSignal<
+		string, -- Channel ID
+		any -- Initial data
+	>,
+
+	receiveMessageSignal: createQueuedSignal.QueuedSignal<
+		string, -- Channel ID
+		any, -- Event
+		number? -- User ID
+	>,
+
+	receiveMessageErrorSignal: createQueuedSignal.QueuedSignal<
+		string, -- Channel ID
+		number -- Nonce
+	>,
+
+	receiveMessageSuccessSignal: createQueuedSignal.QueuedSignal<
+		string, -- Channel ID
+		number -- Nonce
+	>,
+}
+	return {
+		initialStateSignal = createQueuedSignal(),
+		receiveMessageSignal = createQueuedSignal(),
+		receiveMessageErrorSignal = createQueuedSignal(),
+		receiveMessageSuccessSignal = createQueuedSignal(),
+	}
+end
 
 local function createMockNetwork(): (Network, React.ComponentType<{
 	children: React.ReactNode,
@@ -120,6 +149,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			localUserId = network.localUserId,
 			initialStates = initialStates,
 
+			-- :: any casts for generics
 			onInitialStateCallback = signals.initialStateSignal.connect :: any,
 			onReceiveMessageCallback = signals.receiveMessageSignal.connect :: any,
 			onReceiveMessageErrorCallback = signals.receiveMessageErrorSignal.connect,
