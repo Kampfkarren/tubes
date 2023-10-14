@@ -1,0 +1,30 @@
+{
+	"name": "distributed-networks-place",
+	"servePort": 12345,
+	"servePlaceIds": [
+		0,
+		95206881
+	],
+	"tree": {
+		"$className": "DataModel",
+		"HttpService": {
+			"$properties": {
+				"HttpEnabled": true
+			}
+		},
+		"ReplicatedStorage": {
+			"DevPackages": {
+				"$path": "DevPackages"
+			},
+			"Packages": {
+				"$path": "Packages",
+				"DistributedNetworks": {
+					"$path": "src"
+				}
+			},
+			"Demo": {
+				"$path": "chat-demo/shared"
+			}
+		}
+	}
+}

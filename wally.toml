@@ -1,0 +1,19 @@
+[package]
+name = "ytmnd2/distributed-networks"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+# Do not change this to jsdotlua.
+# My Movie needs core-packages until virtualized-list-lua uses jsdotlua
+# and My Movie is updated alongside it.
+# If you want to upgrade this to jsdotlua, solve https://github.com/jsdotlua/virtualized-list-lua/issues/5
+# =)
+React = "core-packages/react@17.0.1-rc.19"
+
+[dev-dependencies]
+ReactRoblox = "core-packages/react-roblox@17.0.1-rc.19"
+
+[place]
+shared-packages = "game.ReplicatedStorage.Packages"
