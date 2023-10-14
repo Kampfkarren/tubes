@@ -56,6 +56,7 @@ function ServerState.process(state: ServerState, event: Event, userId: number?):
 	elseif event.type == "chat" then
 		assert(userId ~= nil, "Chat message sent without client ID")
 		assert(state.members[tostring(userId)] ~= nil, "Chat message sent from unconnected client")
+		assert(typeof(event.contents) == "string", "Contents must be a string")
 
 		state = table.clone(state)
 		state.messages = table.clone(state.messages)
