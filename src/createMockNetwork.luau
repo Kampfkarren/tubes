@@ -79,7 +79,6 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 	local function provider(props: {
 		children: React.ReactNode,
 	}): React.ReactNode
-		-- TODO: Add connection to addLocalPlayer to set this
 		local initialStates, setInitialStates = React.useState({})
 
 		React.useEffect(function()
