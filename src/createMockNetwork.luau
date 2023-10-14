@@ -61,7 +61,9 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			state = defaultState,
 
 			addLocalPlayer = function(self: Channel<ServerState, Event>)
-				signals.initialStateSignal.fire(self.id, self.state)
+				task.delay(network.ping, function()
+					signals.initialStateSignal.fire(self.id, self.state)
+				end)
 			end,
 
 			sendEvent = function(self: Channel<ServerState, Event>, event: Event, userId: number?)
