@@ -88,6 +88,6 @@ version = "4.0.0"
 dependencies = []
 
 [[package]]
-name = "ytmnd2/distributed-networks"
+name = "ytmnd2/tubes"
 version = "0.1.0"
 dependencies = [["React", "core-packages/react@17.0.1-rc.19"], ["ReactRoblox", "core-packages/react-roblox@17.0.1-rc.19"]]

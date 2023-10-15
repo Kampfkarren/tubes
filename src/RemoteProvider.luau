@@ -1,12 +1,12 @@
 local Players = game:GetService("Players")
 
-local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
+local Tubes = script:FindFirstAncestor("Tubes")
 
-local React = require(DistributedNetworks.Parent.React)
+local React = require(Tubes.Parent.React)
 
-local Context = require(DistributedNetworks.Context)
-local Remote = require(DistributedNetworks.Remote)
-local Signal = require(DistributedNetworks.Signal)
+local Context = require(Tubes.Context)
+local Remote = require(Tubes.Remote)
+local Signal = require(Tubes.Signal)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
@@ -29,7 +29,7 @@ local function RemoteProvider(props: {
 	children: React.ReactNode,
 })
 	local existingContext = React.useContext(Context)
-	assert(existingContext.default, "You cannot mount two DistributedNetworks providers")
+	assert(existingContext.default, "You cannot mount two Tubes providers")
 
 	local initialStates, setInitialStates = React.useState({})
 

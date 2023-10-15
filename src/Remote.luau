@@ -8,7 +8,7 @@ Remote.clientPacketTypeReceiveMessage = "c"
 Remote.clientPacketTypeReceiveMessageSuccess = "d"
 Remote.clientPacketTypeReceiveMessageError = "e"
 
-local REMOTE_EVENT_NAME = "DistributedNetworksManagedRemoteEvent"
+local REMOTE_EVENT_NAME = "TubesManagedRemoteEvent"
 
 function Remote.getOrCreateRemoteEvent(): RemoteEvent
 	assert(RunService:IsRunning(), "Can't call getOrCreateRemoteEvent unless the server is running")

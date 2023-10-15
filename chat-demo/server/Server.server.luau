@@ -3,10 +3,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local DistributedNetworks = require(ReplicatedStorage.Packages.DistributedNetworks)
 local ServerState = require(ReplicatedStorage.Demo.ServerState)
+local Tubes = require(ReplicatedStorage.Packages.Tubes)
 
-local network = DistributedNetworks.createNetwork()
+local network = Tubes.createNetwork()
 
 local generalChannel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
 Workspace:SetAttribute("GeneralChannel", generalChannel.id)

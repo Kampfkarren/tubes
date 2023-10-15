@@ -1,8 +1,8 @@
-local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
+local Tubes = script:FindFirstAncestor("Tubes")
 
-local React = require(DistributedNetworks.Parent.React)
+local React = require(Tubes.Parent.React)
 
-local Context = require(DistributedNetworks.Context)
+local Context = require(Tubes.Context)
 
 local function useLocalUserId(): number
 	local context = React.useContext(Context)

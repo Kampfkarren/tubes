@@ -1,5 +1,5 @@
 [package]
-name = "ytmnd2/distributed-networks"
+name = "ytmnd2/tubes"
 version = "0.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"

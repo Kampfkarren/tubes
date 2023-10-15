@@ -1,6 +1,6 @@
-local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
+local Tubes = script:FindFirstAncestor("Tubes")
 
-local Types = require(DistributedNetworks.Types)
+local Types = require(Tubes.Types)
 
 local Serializers = {}
 

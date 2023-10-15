@@ -1,9 +1,9 @@
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local DistributedNetworks = require(ReplicatedStorage.Packages.DistributedNetworks)
 local React = require(ReplicatedStorage.Packages.React)
 local ServerState = require(ReplicatedStorage.Demo.ServerState)
+local Tubes = require(ReplicatedStorage.Packages.Tubes)
 
 local e = React.createElement
 
@@ -19,7 +19,7 @@ end
 local function ChatWindow(props: {
 	channelId: string?,
 })
-	local userId = DistributedNetworks.useLocalUserId()
+	local userId = Tubes.useLocalUserId()
 
 	local defaultState = React.useMemo(function()
 		local newDefaultState = table.clone(ServerState.defaultState)
@@ -34,7 +34,7 @@ local function ChatWindow(props: {
 	end, {})
 
 	local serverState, sendEvent =
-		DistributedNetworks.useChannel(props.channelId, ServerState.process, defaultState, ServerState.serializers)
+		Tubes.useChannel(props.channelId, ServerState.process, defaultState, ServerState.serializers)
 
 	local nextOrder = createNextOrder()
 

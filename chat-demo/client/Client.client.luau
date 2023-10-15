@@ -3,9 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 
-local DistributedNetworks = require(ReplicatedStorage.Packages.DistributedNetworks)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.DevPackages.ReactRoblox)
+local Tubes = require(ReplicatedStorage.Packages.Tubes)
 
 local ChatWindow = require(ReplicatedStorage.Demo.ChatWindow)
 
@@ -21,7 +21,7 @@ local root = ReactRoblox.createRoot(Instance.new("Folder"))
 
 root:render(ReactRoblox.createPortal(
 	e(
-		DistributedNetworks.RemoteProvider,
+		Tubes.RemoteProvider,
 		{},
 		e(
 			"ScreenGui",

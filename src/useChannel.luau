@@ -1,11 +1,11 @@
-local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
+local Tubes = script:FindFirstAncestor("Tubes")
 
-local React = require(DistributedNetworks.Parent.React)
+local React = require(Tubes.Parent.React)
 
-local Context = require(DistributedNetworks.Context)
-local Serializers = require(DistributedNetworks.Serializers)
-local Types = require(DistributedNetworks.Types)
-local nonceToString = require(DistributedNetworks.nonceToString)
+local Context = require(Tubes.Context)
+local Serializers = require(Tubes.Serializers)
+local Types = require(Tubes.Types)
+local nonceToString = require(Tubes.nonceToString)
 
 type PendingEvent<Event> = {
 	event: Event,
@@ -41,7 +41,7 @@ local function useChannel<ServerState, Event>(
 	serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
 ): (ServerState?, (Event) -> ())
 	local context = React.useContext(Context)
-	assert(channelId == nil or not context.default, "DistributedNetworks context is not provided, but a channel ID is.")
+	assert(channelId == nil or not context.default, "Tubes context is not provided, but a channel ID is.")
 
 	assert(channelId ~= nil or initialState ~= nil, "Local channels must provide an initial state")
 

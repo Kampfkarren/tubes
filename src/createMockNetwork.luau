@@ -1,15 +1,15 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
-local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
+local Tubes = script:FindFirstAncestor("Tubes")
 
-local React = require(DistributedNetworks.Parent.React)
+local React = require(Tubes.Parent.React)
 
-local Context = require(DistributedNetworks.Context)
-local Serializers = require(DistributedNetworks.Serializers)
-local Signal = require(DistributedNetworks.Signal)
-local Types = require(DistributedNetworks.Types)
-local createQueuedSignal = require(DistributedNetworks.createQueuedSignal)
+local Context = require(Tubes.Context)
+local Serializers = require(Tubes.Serializers)
+local Signal = require(Tubes.Signal)
+local Types = require(Tubes.Types)
+local createQueuedSignal = require(Tubes.createQueuedSignal)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
