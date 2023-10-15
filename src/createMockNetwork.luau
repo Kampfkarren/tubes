@@ -36,6 +36,8 @@ type Channel<ServerState, Event> = {
 
 	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: string) -> (),
 	onReceiveEvent: Signal.Signal<Event>,
+
+	setShouldErrorCallback: (self: Channel<ServerState, Event>, (event: Event) -> boolean) -> (),
 }
 
 -- Trying to simulate RemoteEvents being fired before the UI mounts
@@ -92,6 +94,9 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		>?
 	): Channel<ServerState, Event>
 		local channelId = HttpService:GenerateGUID()
+		local shouldErrorCallback = function(_: Event)
+			return false
+		end
 
 		local channel = {
 			id = channelId,
@@ -122,6 +127,11 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 				self.onReceiveEvent:Fire(event)
 
 				task.delay(network.ping, function()
+					if shouldErrorCallback(event) then
+						signals.receiveMessageErrorSignal.fire(self.id, nonce)
+						return
+					end
+
 					event = Serializers.deserialize(event, serializers and serializers.eventSerializer)
 					self.state = processEvent(self.state, event, network.localUserId)
 					signals.receiveMessageSuccessSignal.fire(self.id, nonce)
@@ -129,6 +139,10 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			end,
 
 			onReceiveEvent = Signal.new(),
+
+			setShouldErrorCallback = function(_: Channel<ServerState, Event>, newShouldErrorCallback)
+				shouldErrorCallback = newShouldErrorCallback
+			end,
 		}
 
 		channels[channelId] = channel

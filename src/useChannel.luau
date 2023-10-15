@@ -150,7 +150,32 @@ local function useChannel<ServerState, Event>(
 		)
 
 		local disconnectOnReceiveMessageError = context.onReceiveMessageErrorCallback(function(receiveChannelId, nonce)
-			error("NYI: Message errors")
+			-- TODO: Log it
+			if receiveChannelId ~= channelId then
+				return
+			end
+
+			setNetworkState(function(currentState)
+				if currentState.channelId ~= channelId then
+					return currentState
+				end
+
+				local pendingEventIndex = nil
+				for index, pendingEvent in currentState.pendingEvents do
+					if pendingEvent.nonce == nonce then
+						pendingEventIndex = index
+						break
+					end
+				end
+
+				assert(currentState.serverState ~= nil, "Server state is nil when receiving a message error response")
+				assert(pendingEventIndex ~= nil, "Received message error for nonce that is not pending")
+
+				currentState = table.clone(currentState)
+				currentState.pendingEvents = table.clone(currentState.pendingEvents)
+				table.remove(currentState.pendingEvents, pendingEventIndex)
+				return currentState
+			end)
 		end)
 
 		return function()
