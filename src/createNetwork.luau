@@ -1,20 +1,13 @@
 -- TODO: createLogger and such for all these error and warn
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Tubes = script:FindFirstAncestor("Tubes")
 
-local React = require(Tubes.Parent.React)
-
 local Remote = require(Tubes.Remote)
 local Serializers = require(Tubes.Serializers)
-local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
 local nonceToString = require(Tubes.nonceToString)
-
-local e = React.createElement
-local LocalPlayer = Players.LocalPlayer
 
 type Network = {
 	createChannel: <ServerState, Event>(
