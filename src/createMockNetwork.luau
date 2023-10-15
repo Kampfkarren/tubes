@@ -5,6 +5,7 @@ local Tubes = script:FindFirstAncestor("Tubes")
 
 local React = require(Tubes.Parent.React)
 
+local BaseProvider = require(Tubes.BaseProvider)
 local Context = require(Tubes.Context)
 local Serializers = require(Tubes.Serializers)
 local Signal = require(Tubes.Signal)
@@ -34,10 +35,9 @@ type Channel<ServerState, Event> = {
 
 	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> (),
 
-	receiveEvent: (self: Channel<ServerState, Event>, event: Event, nonce: string) -> (),
-	onReceiveEvent: Signal.Signal<Event>,
-
 	setShouldErrorCallback: (self: Channel<ServerState, Event>, (event: Event) -> boolean) -> (),
+
+	_receiveEvent: (self: Channel<ServerState, Event>, nonce: string, event: Event) -> (),
 }
 
 -- Trying to simulate RemoteEvents being fired before the UI mounts
@@ -82,11 +82,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 	local signals = createMessageSignals()
 
-	-- We want to receive the queued signals ourselves, as well as letting useChannel read them
-	local initialStateSignal2 = createQueuedSignal()
-
 	function network.createChannel<ServerState, Event>(
-		_self: Network,
+		_: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
 		serializers: Types.ChannelSerializers<
@@ -96,107 +93,86 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			unknown
 		>?
 	): Channel<ServerState, Event>
-		local channelId = HttpService:GenerateGUID()
+		local channel = {}
+
+		channel.id = HttpService:GenerateGUID(false)
+		channel.state = defaultState
+
+		local localPlayerAdded = false
+		channel.addLocalPlayer = function(_: Channel<ServerState, Event>)
+			assert(not localPlayerAdded, "addLocalPlayer called twice")
+			localPlayerAdded = true
+
+			task.delay(network.ping, function()
+				signals.initialStateSignal.fire(
+					channel.id,
+					Serializers.serialize(channel.state, serializers and serializers.stateSerializer)
+				)
+			end)
+		end
+
+		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?)
+			channel.state = processEvent(channel.state, event, userId)
+
+			task.delay(network.ping, function()
+				signals.receiveMessageSignal.fire(
+					channel.id,
+					userId,
+					Serializers.serialize(event, serializers and serializers.eventSerializer)
+				)
+			end)
+		end
+
 		local shouldErrorCallback = function(_: Event)
 			return false
 		end
 
-		local channel = {
-			id = channelId,
-			state = defaultState,
+		channel.setShouldErrorCallback = function(
+			_: Channel<ServerState, Event>,
+			newShouldErrorCallback: (event: Event) -> boolean
+		)
+			shouldErrorCallback = newShouldErrorCallback
+		end
 
-			addLocalPlayer = function(self: Channel<ServerState, Event>)
-				task.delay(network.ping, function()
-					signals.initialStateSignal.fire(
-						self.id,
-						Serializers.serialize(self.state, serializers and serializers.stateSerializer)
-					)
+		channel._receiveEvent = function(_: Channel<ServerState, Event>, nonce: string, event: unknown)
+			task.delay(network.ping, function()
+				local deserializedEvent = Serializers.deserialize(event, serializers and serializers.eventSerializer)
 
-					initialStateSignal2.fire(
-						self.id,
-						Serializers.serialize(self.state, serializers and serializers.stateSerializer)
-					)
-				end)
-			end,
+				if shouldErrorCallback(deserializedEvent) then
+					signals.receiveMessageErrorSignal.fire(channel.id, nonce)
+					return
+				end
 
-			sendEvent = function(self: Channel<ServerState, Event>, event: Event, userId: number?)
-				self.state = processEvent(self.state, event, userId)
+				channel.state = processEvent(channel.state, deserializedEvent, network.localUserId)
 
-				task.delay(network.ping, function()
-					signals.receiveMessageSignal.fire(
-						self.id,
-						userId,
-						Serializers.serialize(event, serializers and serializers.eventSerializer)
-					)
-				end)
-			end,
+				signals.receiveMessageSuccessSignal.fire(channel.id, nonce)
+			end)
+		end
 
-			receiveEvent = function(self: Channel<ServerState, Event>, event: Event, nonce: string)
-				self.onReceiveEvent:Fire(event)
-
-				task.delay(network.ping, function()
-					if shouldErrorCallback(event) then
-						signals.receiveMessageErrorSignal.fire(self.id, nonce)
-						return
-					end
-
-					event = Serializers.deserialize(event, serializers and serializers.eventSerializer)
-					self.state = processEvent(self.state, event, network.localUserId)
-					signals.receiveMessageSuccessSignal.fire(self.id, nonce)
-				end)
-			end,
-
-			onReceiveEvent = Signal.new(),
-
-			setShouldErrorCallback = function(_: Channel<ServerState, Event>, newShouldErrorCallback)
-				shouldErrorCallback = newShouldErrorCallback
-			end,
-		}
-
-		channels[channelId] = channel
+		channels[channel.id] = channel
 
 		return channel
 	end
 
+	local function sendEventToChannel(channelId: string, nonce: string, event: unknown)
+		assert(channels[channelId] ~= nil, "sendEventToChannel called for unknown channel")
+
+		local channel = channels[channelId]
+		channel:_receiveEvent(nonce, event)
+	end
+
 	local function provider(props: {
 		children: React.ReactNode,
-	}): React.ReactNode
-		local initialStates, setInitialStates = React.useState({})
-
-		React.useEffect(function()
-			return initialStateSignal2.connect(function(channelId, initialState)
-				setInitialStates(function(currentInitialStates)
-					assert(
-						currentInitialStates[channelId] == nil,
-						"Already sent initial state for channel ID. Are you calling addLocalPlayer twice?"
-					)
-
-					currentInitialStates = table.clone(currentInitialStates)
-					currentInitialStates[channelId] = initialState :: any
-					return currentInitialStates
-				end)
-			end)
-		end, {})
-
-		local sendEventToChannel = React.useCallback(function(channelId: string, nonce: string, event: unknown)
-			local channel = assert(channels[channelId], "Channel doesn't exist")
-			channel:receiveEvent(event, nonce)
-		end, {})
-
-		local context: Context.ContextType = {
-			localUserId = network.localUserId,
-			initialStates = initialStates,
-
+	})
+		return e(BaseProvider, {
 			onInitialStateCallback = signals.initialStateSignal.connect,
 			onReceiveMessageCallback = signals.receiveMessageSignal.connect,
 			onReceiveMessageErrorCallback = signals.receiveMessageErrorSignal.connect,
 			onReceiveMessageSuccessCallback = signals.receiveMessageSuccessSignal.connect,
 
-			sendEventToChannel = sendEventToChannel,
-		}
+			localUserId = network.localUserId,
 
-		return e(Context.Provider, {
-			value = context,
+			sendEventToChannel = sendEventToChannel,
 		}, props.children)
 	end
 

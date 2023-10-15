@@ -226,12 +226,18 @@ local function ChatWindow(props: {
 				TextXAlignment = Enum.TextXAlignment.Left,
 
 				[React.Event.FocusLost] = function(textBox: TextBox)
+					if textBox.Text == "" then
+						return
+					end
+
 					sendEvent({
 						type = "chat",
 						contents = textBox.Text,
 					})
 
 					textBox.Text = ""
+
+					textBox:CaptureFocus()
 				end,
 			}),
 		}),
