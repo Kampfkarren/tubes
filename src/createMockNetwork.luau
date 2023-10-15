@@ -135,6 +135,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		end
 
 		channel._receiveEvent = function(_: Channel<ServerState, Event>, nonce: string, event: unknown)
+			assert(localPlayerAdded, "Event sent to channel before local player added")
+
 			task.delay(network.ping, function()
 				local deserializedEvent = Serializers.deserialize(event, serializers and serializers.eventSerializer)
 

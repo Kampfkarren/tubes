@@ -56,7 +56,7 @@ local function BaseProvider(props: {
 				local currentState = currentChannelStates[channelId]
 				assert(currentState == nil or currentState.serverState == nil, "Received initial state twice")
 
-				if currentState.serverState == nil and #currentState.pendingEvents > 0 then
+				if currentState ~= nil and (currentState.serverState == nil and #currentState.pendingEvents > 0) then
 					error("NYI: Send previously pending events (and make sure this only happens once)")
 				end
 
@@ -71,7 +71,7 @@ local function BaseProvider(props: {
 					}
 					else {
 						type = "waitingForSchema",
-						serializedServerState = serverState,
+						serializedState = serverState,
 					}
 
 				currentChannelStates[channelId] = currentState
@@ -213,6 +213,7 @@ local function BaseProvider(props: {
 	local lock = React.useCallback(
 		function<ServerState, Event>(channelId: string, schema: Context.ChannelSchema<ServerState, Event>)
 			setChannelStates(function(currentChannelStates)
+				currentChannelStates = table.clone(currentChannelStates)
 				local currentChannel = currentChannelStates[channelId]
 
 				if currentChannel ~= nil and currentChannel.locked then
@@ -221,36 +222,39 @@ local function BaseProvider(props: {
 					)
 				end
 
-				if currentChannel ~= nil and currentChannel.schema ~= nil then
+				if currentChannel ~= nil and currentChannel.schema == nil then
 					assert(
-						currentChannel.schema.processEvent == schema.processEvent
-							and currentChannel.schema.serializers == schema.serializers,
-						"Cannot change schema after passing it to useChannel"
+						currentChannel.serverState ~= nil and currentChannel.serverState.type == "waitingForSchema",
+						"Cannot change schema after receiving initial state"
 					)
+
+					currentChannel = table.clone(currentChannel)
+					currentChannel.serverState = if currentChannel.serverState
+							and currentChannel.serverState.type == "waitingForSchema"
+						then {
+							type = "ready",
+							state = Serializers.deserialize(
+								currentChannel.serverState.serializedState,
+								schema.serializers and schema.serializers.stateSerializer
+							),
+						}
+						else currentChannel.serverState
+				else
+					if currentChannel ~= nil and currentChannel.schema ~= nil then
+						assert(
+							currentChannel.schema.processEvent == schema.processEvent
+								and currentChannel.schema.serializers == schema.serializers,
+							"Cannot change schema after passing it to useChannel"
+						)
+					end
+
+					currentChannel = if currentChannelStates[channelId]
+						then table.clone(currentChannelStates[channelId])
+						else defaultChannelState()
 				end
 
-				assert(
-					currentChannel == nil
-						or (currentChannel.serverState ~= nil and currentChannel.serverState.type ~= "ready"),
-					"We've somehow already deserialized the server state for this channel"
-				)
-
-				currentChannelStates = table.clone(currentChannelStates)
-
-				currentChannel = currentChannelStates[channelId] or defaultChannelState()
-				currentChannel.locked = true
 				currentChannel.schema = schema :: Context.ChannelSchema<any, any>
-
-				currentChannel.serverState = if currentChannel.serverState
-						and currentChannel.serverState.type == "waitingForSchema"
-					then {
-						type = "ready",
-						serverState = Serializers.deserialize(
-							currentChannel.serverState.serializedState,
-							schema.serializers and schema.serializers.stateSerializer
-						),
-					}
-					else currentChannel.serverState
+				currentChannel.locked = true
 
 				if currentChannel.serverState ~= nil then
 					assert(
@@ -290,7 +294,7 @@ local function BaseProvider(props: {
 
 					currentChannel.locked = false
 
-					return deepFreeze(channelStates)
+					return deepFreeze(currentChannelStates)
 				end)
 			end
 		end,
@@ -306,6 +310,7 @@ local function BaseProvider(props: {
 
 		lock = lock,
 	}
+	print("states", channelStates)
 
 	return e(Context.Provider, {
 		value = context,
