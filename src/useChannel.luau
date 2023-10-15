@@ -3,6 +3,7 @@ local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
 local React = require(DistributedNetworks.Parent.React)
 
 local Context = require(DistributedNetworks.Context)
+local Serializers = require(DistributedNetworks.Serializers)
 local Types = require(DistributedNetworks.Types)
 local nonceToString = require(DistributedNetworks.nonceToString)
 
@@ -36,7 +37,8 @@ end
 local function useChannel<ServerState, Event>(
 	channelId: string?,
 	processEvent: Types.ProcessEvent<ServerState, Event>,
-	initialState: ServerState?
+	initialState: ServerState?,
+	serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
 ): (ServerState?, (Event) -> ())
 	local context = React.useContext(Context)
 	assert(channelId == nil or not context.default, "DistributedNetworks context is not provided, but a channel ID is.")
@@ -67,7 +69,10 @@ local function useChannel<ServerState, Event>(
 
 			currentNetworkState.serverState = if channelId == nil
 				then initialState
-				else context.initialStates[channelId]
+				else context.initialStates[channelId] and Serializers.deserialize(
+					context.initialStates[channelId],
+					serializers and serializers.stateSerializer
+				)
 
 			return currentNetworkState
 		end)
@@ -81,7 +86,7 @@ local function useChannel<ServerState, Event>(
 				assert(currentState.serverState == nil, "Server state is not nil when receiving initial state")
 
 				currentState = table.clone(currentState)
-				currentState.serverState = state
+				currentState.serverState = Serializers.deserialize(state, serializers and serializers.stateSerializer)
 				return currentState
 			end)
 		end)
@@ -99,7 +104,11 @@ local function useChannel<ServerState, Event>(
 				assert(currentState.serverState ~= nil, "Server state is nil when receiving a message")
 
 				currentState = table.clone(currentState)
-				currentState.serverState = processEvent(currentState.serverState, event, userId)
+				currentState.serverState = processEvent(
+					currentState.serverState,
+					Serializers.deserialize(event, serializers and serializers.eventSerializer),
+					userId
+				)
 				return currentState
 			end)
 		end)
@@ -186,7 +195,11 @@ local function useChannel<ServerState, Event>(
 
 		-- I think there's a world where you can change channel and send event at the same time?
 		if channelId ~= nil then
-			context.sendEventToChannel(channelId, nonce, event)
+			context.sendEventToChannel(
+				channelId,
+				nonce,
+				Serializers.serialize(event, serializers and serializers.eventSerializer)
+			)
 		end
 	end, { channelId })
 

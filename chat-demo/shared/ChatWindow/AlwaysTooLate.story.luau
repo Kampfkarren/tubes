@@ -2,16 +2,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ChatWindow = require(script.Parent)
 local DistributedNetworks = require(ReplicatedStorage.Packages.DistributedNetworks)
-local ServerState = require(ReplicatedStorage.Demo.ServerState)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.DevPackages.ReactRoblox)
+local ServerState = require(ReplicatedStorage.Demo.ServerState)
 
 local e = React.createElement
 
 return function(target)
 	local network, provider = DistributedNetworks.createMockNetwork()
 
-	local channel = network:createChannel(ServerState.process, ServerState.defaultState)
+	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
 	channel:addLocalPlayer()
 
 	channel:sendEvent({

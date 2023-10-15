@@ -76,7 +76,7 @@ local function RemoteProvider(props: {
 		end
 	end, {})
 
-	local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: string, event: Event)
+	local sendEventToChannel = React.useCallback(function(channelId: string, nonce: string, event: unknown)
 		local remoteEvent = remoteEventRef.current
 		assert(remoteEvent ~= nil, "Sending event to channel without the RemoteEvent being created yet")
 
@@ -87,9 +87,8 @@ local function RemoteProvider(props: {
 		localUserId = LocalPlayer.UserId,
 		initialStates = initialStates,
 
-		-- :: any casts for generics
-		onInitialStateCallback = onInitialStateCallback :: any,
-		onReceiveMessageCallback = onReceiveMessageCallback :: any,
+		onInitialStateCallback = onInitialStateCallback,
+		onReceiveMessageCallback = onReceiveMessageCallback,
 		onReceiveMessageErrorCallback = onReceiveMessageErrorCallback,
 		onReceiveMessageSuccessCallback = onReceiveMessageSuccessCallback,
 

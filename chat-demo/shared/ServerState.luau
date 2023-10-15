@@ -1,3 +1,5 @@
+local HttpService = game:GetService("HttpService")
+
 export type ServerState = {
 	messages: { Message },
 	members: {
@@ -70,5 +72,28 @@ function ServerState.process(state: ServerState, event: Event, userId: number?):
 		error(`Unexpected event {event.type}`)
 	end
 end
+
+-- Example of serializers. Not actually more optimized :)
+ServerState.serializers = {
+	eventSerializer = {
+		serialize = function(state: Event)
+			return HttpService:JSONEncode(state)
+		end,
+
+		deserialize = function(serialized)
+			return HttpService:JSONDecode(serialized)
+		end,
+	},
+
+	stateSerializer = {
+		serialize = function(state: ServerState)
+			return HttpService:JSONEncode(state)
+		end,
+
+		deserialize = function(serialized)
+			return HttpService:JSONDecode(serialized)
+		end,
+	},
+}
 
 return ServerState

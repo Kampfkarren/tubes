@@ -8,6 +8,7 @@ local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
 local React = require(DistributedNetworks.Parent.React)
 
 local Remote = require(DistributedNetworks.Remote)
+local Serializers = require(DistributedNetworks.Serializers)
 local Signal = require(DistributedNetworks.Signal)
 local Types = require(DistributedNetworks.Types)
 local nonceToString = require(DistributedNetworks.nonceToString)
@@ -19,7 +20,8 @@ type Network = {
 	createChannel: <ServerState, Event>(
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
-		defaultState: ServerState
+		defaultState: ServerState,
+		serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
 	) -> Channel<ServerState, Event>,
 }
 
@@ -70,7 +72,13 @@ local function createNetwork(): Network
 	function network.createChannel<ServerState, Event>(
 		_network: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
-		defaultState: ServerState
+		defaultState: ServerState,
+		serializers: Types.ChannelSerializers<
+			ServerState,
+			unknown,
+			Event,
+			unknown
+		>?
 	): Channel<ServerState, Event>
 		local destroyed = false
 
@@ -89,7 +97,11 @@ local function createNetwork(): Network
 		function channel.addPlayer(self: Channel<ServerState, Event>, player: Player)
 			assert(not self._players[player], "Player is already in channel")
 			self._players[player] = true
-			sendRemote(player, Remote.clientPacketTypeSendInitialState, self.state)
+			sendRemote(
+				player,
+				Remote.clientPacketTypeSendInitialState,
+				Serializers.serialize(self.state, serializers and serializers.stateSerializer)
+			)
 		end
 
 		function channel.removePlayer(self: Channel<ServerState, Event>, player: Player)
@@ -102,7 +114,12 @@ local function createNetwork(): Network
 			channel.state = processEvent(channel.state, event)
 
 			for player in channel._players do
-				sendRemote(player, Remote.clientPacketTypeReceiveMessage, nil, event)
+				sendRemote(
+					player,
+					Remote.clientPacketTypeReceiveMessage,
+					nil,
+					Serializers.serialize(event, serializers and serializers.eventSerializer)
+				)
 			end
 		end
 
@@ -111,14 +128,27 @@ local function createNetwork(): Network
 			channels[channel.id] = nil
 		end
 
-		function channel._receiveMessage(_: Channel<ServerState, Event>, player: Player, nonce: string, event: Event)
+		function channel._receiveMessage(
+			_: Channel<ServerState, Event>,
+			player: Player,
+			nonce: string,
+			eventSerialized: Event
+		)
 			if destroyed then
 				warn(`{player} sent to channel {channel.id} which has been destroyed`)
 				return
 			end
 
-			local success, result = pcall(processEvent, channel.state, event, player.UserId)
-			if not success then
+			local successDeserialize, event =
+				pcall(Serializers.deserialize, eventSerialized, serializers and serializers.eventSerializer)
+			if not successDeserialize then
+				warn(`{player} sent to channel {channel.id} with invalid serialized event:\n{eventSerialized}`)
+				sendRemote(player, Remote.clientPacketTypeReceiveMessageError, nonce)
+				return
+			end
+
+			local successProcess, result = pcall(processEvent, channel.state, event, player.UserId)
+			if not successProcess then
 				-- TODO: Include event data as {:?}
 				warn(`Event sent by {player} resulted in an error:\n{result}`)
 				sendRemote(player, Remote.clientPacketTypeReceiveMessageError, nonce)
@@ -131,7 +161,12 @@ local function createNetwork(): Network
 				if listeningPlayer == player then
 					sendRemote(listeningPlayer, Remote.clientPacketTypeReceiveMessageSuccess, nonce)
 				else
-					sendRemote(listeningPlayer, Remote.clientPacketTypeReceiveMessage, player.UserId, event)
+					sendRemote(
+						listeningPlayer,
+						Remote.clientPacketTypeReceiveMessage,
+						player.UserId,
+						Serializers.serialize(event, serializers and serializers.eventSerializer)
+					)
 				end
 			end
 		end

@@ -6,6 +6,7 @@ local DistributedNetworks = script:FindFirstAncestor("DistributedNetworks")
 local React = require(DistributedNetworks.Parent.React)
 
 local Context = require(DistributedNetworks.Context)
+local Serializers = require(DistributedNetworks.Serializers)
 local Signal = require(DistributedNetworks.Signal)
 local Types = require(DistributedNetworks.Types)
 local createQueuedSignal = require(DistributedNetworks.createQueuedSignal)
@@ -17,7 +18,8 @@ type Network = {
 	createChannel: <ServerState, Event>(
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
-		defaultState: ServerState
+		defaultState: ServerState,
+		serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
 	) -> Channel<ServerState, Event>,
 
 	localUserId: number,
@@ -81,7 +83,13 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 	function network.createChannel<ServerState, Event>(
 		_self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
-		defaultState: ServerState
+		defaultState: ServerState,
+		serializers: Types.ChannelSerializers<
+			ServerState,
+			unknown,
+			Event,
+			unknown
+		>?
 	): Channel<ServerState, Event>
 		local channelId = HttpService:GenerateGUID()
 
@@ -91,7 +99,10 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 			addLocalPlayer = function(self: Channel<ServerState, Event>)
 				task.delay(network.ping, function()
-					signals.initialStateSignal.fire(self.id, self.state)
+					signals.initialStateSignal.fire(
+						self.id,
+						Serializers.serialize(self.state, serializers and serializers.stateSerializer)
+					)
 				end)
 			end,
 
@@ -99,7 +110,11 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 				self.state = processEvent(self.state, event, userId)
 
 				task.delay(network.ping, function()
-					signals.receiveMessageSignal.fire(self.id, userId, event)
+					signals.receiveMessageSignal.fire(
+						self.id,
+						userId,
+						Serializers.serialize(event, serializers and serializers.eventSerializer)
+					)
 				end)
 			end,
 
@@ -107,6 +122,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 				self.onReceiveEvent:Fire(event)
 
 				task.delay(network.ping, function()
+					event = Serializers.deserialize(event, serializers and serializers.eventSerializer)
 					self.state = processEvent(self.state, event, network.localUserId)
 					signals.receiveMessageSuccessSignal.fire(self.id, nonce)
 				end)
@@ -140,7 +156,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			end)
 		end, {})
 
-		local sendEventToChannel = React.useCallback(function<Event>(channelId: string, nonce: string, event: Event)
+		local sendEventToChannel = React.useCallback(function(channelId: string, nonce: string, event: unknown)
 			local channel = assert(channels[channelId], "Channel doesn't exist")
 			channel:receiveEvent(event, nonce)
 		end, {})
@@ -149,9 +165,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			localUserId = network.localUserId,
 			initialStates = initialStates,
 
-			-- :: any casts for generics
-			onInitialStateCallback = signals.initialStateSignal.connect :: any,
-			onReceiveMessageCallback = signals.receiveMessageSignal.connect :: any,
+			onInitialStateCallback = signals.initialStateSignal.connect,
+			onReceiveMessageCallback = signals.receiveMessageSignal.connect,
 			onReceiveMessageErrorCallback = signals.receiveMessageErrorSignal.connect,
 			onReceiveMessageSuccessCallback = signals.receiveMessageSuccessSignal.connect,
 

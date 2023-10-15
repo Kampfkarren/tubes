@@ -18,6 +18,13 @@ end
 
 local function ChatWindow(props: {
 	channelId: string?,
+
+	debugSerializers: DistributedNetworks.ChannelSerializers<
+		ServerState.ServerState,
+		unknown,
+		ServerState.Event,
+		unknown
+	>?,
 })
 	local userId = DistributedNetworks.useLocalUserId()
 
@@ -33,7 +40,12 @@ local function ChatWindow(props: {
 		return newDefaultState
 	end, {})
 
-	local serverState, sendEvent = DistributedNetworks.useChannel(props.channelId, ServerState.process, defaultState)
+	local serverState, sendEvent = DistributedNetworks.useChannel(
+		props.channelId,
+		ServerState.process,
+		defaultState,
+		props.debugSerializers or ServerState.serializers
+	)
 
 	local nextOrder = createNextOrder()
 

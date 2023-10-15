@@ -8,7 +8,7 @@ local ServerState = require(ReplicatedStorage.Demo.ServerState)
 
 local network = DistributedNetworks.createNetwork()
 
-local generalChannel = network:createChannel(ServerState.process, ServerState.defaultState)
+local generalChannel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
 Workspace:SetAttribute("GeneralChannel", generalChannel.id)
 
 Players.PlayerAdded:Connect(function(player)
