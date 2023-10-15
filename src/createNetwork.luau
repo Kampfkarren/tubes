@@ -103,8 +103,12 @@ local function createNetwork(): Network
 		end
 
 		function channel.removePlayer(self: Channel<ServerState, Event>, player: Player)
-			-- TODO: This should send a remote event too so we can clear the initial state
+			if not self._players[player] then
+				return
+			end
+
 			self._players[player] = nil
+			sendRemote(player, Remote.clientPacketTypeDisconnect)
 		end
 
 		function channel.sendEvent(_: Channel<ServerState, Event>, event: Event)

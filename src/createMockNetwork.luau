@@ -32,6 +32,7 @@ type Channel<ServerState, Event> = {
 	state: ServerState,
 
 	addLocalPlayer: (self: Channel<ServerState, Event>) -> (),
+	removeLocalPlayer: (self: Channel<ServerState, Event>) -> (),
 
 	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> (),
 
@@ -62,12 +63,17 @@ local function createMessageSignals(): {
 		string, -- Channel ID
 		string -- Nonce
 	>,
+
+	receiveDisconnectSignal: createQueuedSignal.QueuedSignal<
+		string -- Channel ID
+	>,
 }
 	return {
 		initialStateSignal = createQueuedSignal(),
 		receiveMessageSignal = createQueuedSignal(),
 		receiveMessageErrorSignal = createQueuedSignal(),
 		receiveMessageSuccessSignal = createQueuedSignal(),
+		receiveDisconnectSignal = createQueuedSignal(),
 	}
 end
 
@@ -108,6 +114,15 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 					channel.id,
 					Serializers.serialize(channel.state, serializers and serializers.stateSerializer)
 				)
+			end)
+		end
+
+		channel.removeLocalPlayer = function(_: Channel<ServerState, Event>)
+			assert(localPlayerAdded, "removeLocalPlayer called before addLocalPlayer")
+			localPlayerAdded = false
+
+			task.delay(network.ping, function()
+				signals.receiveDisconnectSignal.fire(channel.id)
 			end)
 		end
 
@@ -171,6 +186,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			onReceiveMessageCallback = signals.receiveMessageSignal.connect,
 			onReceiveMessageErrorCallback = signals.receiveMessageErrorSignal.connect,
 			onReceiveMessageSuccessCallback = signals.receiveMessageSuccessSignal.connect,
+			onReceiveDisconnectCallback = signals.receiveDisconnectSignal.connect,
 
 			localUserId = network.localUserId,
 

@@ -36,6 +36,7 @@ local function RemoteProvider(props: {
 	local receiveMessageSignal, onReceiveMessageCallback = useSignal()
 	local receiveMessageErrorSignal, onReceiveMessageErrorCallback = useSignal()
 	local receiveMessageSuccessSignal, onReceiveMessageSuccessCallback = useSignal()
+	local receiveDisconnectSignal, onReceiveDisconnectCallback = useSignal()
 
 	local remoteEventRef = React.useRef(nil :: RemoteEvent?)
 	React.useEffect(function()
@@ -54,6 +55,8 @@ local function RemoteProvider(props: {
 					receiveMessageErrorSignal:Fire(...)
 				elseif packetType == Remote.clientPacketTypeSendInitialState then
 					initialStateSignal:Fire(...)
+				elseif packetType == Remote.clientPacketTypeDisconnect then
+					receiveDisconnectSignal:Fire(...)
 				else
 					error(`Unknown packet type sent from server: {packetType}`)
 				end
@@ -81,6 +84,7 @@ local function RemoteProvider(props: {
 		onReceiveMessageCallback = onReceiveMessageCallback,
 		onReceiveMessageErrorCallback = onReceiveMessageErrorCallback,
 		onReceiveMessageSuccessCallback = onReceiveMessageSuccessCallback,
+		onReceiveDisconnectCallback = onReceiveDisconnectCallback,
 
 		sendEventToChannel = sendEventToChannel,
 	}, props.children)

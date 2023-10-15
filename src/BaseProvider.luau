@@ -40,6 +40,7 @@ local function BaseProvider(props: {
 	onReceiveMessageCallback: (callback: (channelId: string, userId: number?, event: unknown) -> ()) -> Destructor,
 	onReceiveMessageErrorCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
 	onReceiveMessageSuccessCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
+	onReceiveDisconnectCallback: (callback: (channelId: string) -> ()) -> Destructor,
 
 	sendEventToChannel: (channelId: string, nonce: string, serializedEvent: unknown) -> (),
 
@@ -172,11 +173,29 @@ local function BaseProvider(props: {
 			end)
 		end)
 
+		local disconnectOnReceiveDisconnectCallback = props.onReceiveDisconnectCallback(function(channelId)
+			setChannelStates(function(currentChannelStates)
+				currentChannelStates = table.clone(currentChannelStates)
+
+				local currentState = currentChannelStates[channelId]
+				assert(currentState ~= nil, "Received message for unknown channel")
+
+				currentState = table.clone(currentState)
+				currentState.serverState = nil
+				currentState.pendingServerEvents = {}
+
+				currentChannelStates[channelId] = currentState
+
+				return deepFreeze(currentChannelStates)
+			end)
+		end)
+
 		return function()
 			disconnectOnInitialStateCallback()
 			disconnectOnReceiveMessageCallback()
 			disconnectOnReceiveMessageSuccessCallback()
 			disconnectOnReceiveMessageErrorCallback()
+			disconnectOnReceiveDisconnectCallback()
 		end
 	end, {})
 

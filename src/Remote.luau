@@ -7,6 +7,7 @@ Remote.clientPacketTypeSendInitialState = "a"
 Remote.clientPacketTypeReceiveMessage = "c"
 Remote.clientPacketTypeReceiveMessageSuccess = "d"
 Remote.clientPacketTypeReceiveMessageError = "e"
+Remote.clientPacketTypeDisconnect = "f"
 
 local REMOTE_EVENT_NAME = "TubesManagedRemoteEvent"
 

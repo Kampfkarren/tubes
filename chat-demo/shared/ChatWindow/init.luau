@@ -47,6 +47,8 @@ end
 local function ChatWindow(props: {
 	channelId: string?,
 	possibleChannels: { string }?,
+
+	disconnect: () -> ()?,
 })
 	local userId = Tubes.useLocalUserId()
 
@@ -81,7 +83,7 @@ local function ChatWindow(props: {
 	if serverState ~= nil then
 		for index, message in serverState.messages do
 			chatMessages["Message" .. index] = e("TextLabel", {
-				AutomaticSize = Enum.AutomaticSize.Y,
+				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundTransparency = 1,
 				Font = Enum.Font.Gotham,
 				LayoutOrder = index,
@@ -89,6 +91,7 @@ local function ChatWindow(props: {
 				Text = `<b>{message.name}:</b> {message.contents}`,
 				TextSize = 24,
 				TextXAlignment = Enum.TextXAlignment.Left,
+				TextWrapped = true,
 				Size = UDim2.fromScale(1, 0),
 			})
 		end
@@ -185,7 +188,7 @@ local function ChatWindow(props: {
 				BackgroundColor3 = Color3.new(0.92, 0.92, 0.92),
 				BorderSizePixel = 0,
 				Position = UDim2.fromScale(1, 0),
-				Size = UDim2.new(0, 130, 1, 0),
+				Size = UDim2.new(0, 130, 1, -40),
 			}, {
 				UIPadding = e("UIPadding", {
 					PaddingLeft = UDim.new(0, 4),
@@ -200,6 +203,20 @@ local function ChatWindow(props: {
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
 			}, channelButtons),
+
+			Disconnect = props.disconnect and e("TextButton", {
+				AnchorPoint = Vector2.new(1, 1),
+				BackgroundColor3 = Color3.fromHex("#3498db"),
+				BorderSizePixel = 0,
+				Font = Enum.Font.Gotham,
+				Position = UDim2.fromScale(1, 1),
+				Size = UDim2.new(0, 130, 0, 32),
+				Text = "Disconnect",
+				TextColor3 = Color3.new(1, 1, 1),
+				TextSize = 20,
+
+				[React.Event.Activated] = props.disconnect,
+			}),
 		}),
 
 		ChatInput = e("Frame", {
