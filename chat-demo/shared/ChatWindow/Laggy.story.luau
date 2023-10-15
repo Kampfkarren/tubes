@@ -47,6 +47,7 @@ return function(target)
 	))
 
 	return function()
+		channel:destroy()
 		task.cancel(loopTask)
 		root:unmount()
 	end

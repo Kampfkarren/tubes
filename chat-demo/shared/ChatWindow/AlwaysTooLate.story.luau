@@ -43,6 +43,7 @@ return function(target)
 	))
 
 	return function()
+		channel:destroy()
 		root:unmount()
 	end
 end

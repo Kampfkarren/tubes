@@ -41,6 +41,8 @@ return function(target)
 	))
 
 	return function()
+		channel1:destroy()
+		channel2:destroy()
 		root:unmount()
 	end
 end

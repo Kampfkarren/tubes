@@ -7,13 +7,13 @@ local React = require(Tubes.Parent.React)
 
 local BaseProvider = require(Tubes.BaseProvider)
 local Serializers = require(Tubes.Serializers)
+local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
 local createQueuedSignal = require(Tubes.createQueuedSignal)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
 
--- TODO: Destroy to clear tasks
 type Network = {
 	createChannel: <ServerState, Event>(
 		self: Network,
@@ -37,6 +37,9 @@ type Channel<ServerState, Event> = {
 
 	setShouldErrorCallback: (self: Channel<ServerState, Event>, (event: Event) -> boolean) -> (),
 
+	destroy: (self: Channel<ServerState, Event>) -> (),
+
+	onReceiveEvent: Signal.Signal<Event>,
 	_receiveEvent: (self: Channel<ServerState, Event>, nonce: string, event: Event) -> (),
 }
 
@@ -103,12 +106,26 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		channel.id = HttpService:GenerateGUID(false)
 		channel.state = defaultState
 
+		channel.onReceiveEvent = Signal.new()
+
+		local tasks: { [thread]: true } = {}
+
+		local function afterPing(callback: () -> ())
+			local delayTask
+			delayTask = task.delay(network.ping, function()
+				callback()
+				tasks[delayTask] = nil
+			end)
+
+			tasks[delayTask] = true
+		end
+
 		local localPlayerAdded = false
 		channel.addLocalPlayer = function(_: Channel<ServerState, Event>)
 			assert(not localPlayerAdded, "addLocalPlayer called twice")
 			localPlayerAdded = true
 
-			task.delay(network.ping, function()
+			afterPing(function()
 				signals.initialStateSignal.fire(
 					channel.id,
 					Serializers.serialize(channel.state, serializers and serializers.stateSerializer)
@@ -120,7 +137,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			assert(localPlayerAdded, "removeLocalPlayer called before addLocalPlayer")
 			localPlayerAdded = false
 
-			task.delay(network.ping, function()
+			afterPing(function()
 				signals.receiveDisconnectSignal.fire(channel.id)
 			end)
 		end
@@ -128,7 +145,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?)
 			channel.state = processEvent(channel.state, event, userId)
 			if localPlayerAdded then
-				task.delay(network.ping, function()
+				afterPing(function()
 					signals.receiveMessageSignal.fire(
 						channel.id,
 						userId,
@@ -152,6 +169,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		channel._receiveEvent = function(_: Channel<ServerState, Event>, nonce: string, event: unknown)
 			assert(localPlayerAdded, "Event sent to channel before local player added")
 
+			channel.onReceiveEvent:Fire(event)
+
 			task.delay(network.ping, function()
 				local deserializedEvent = Serializers.deserialize(event, serializers and serializers.eventSerializer)
 
@@ -164,6 +183,14 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 				signals.receiveMessageSuccessSignal.fire(channel.id, nonce)
 			end)
+		end
+
+		channel.destroy = function(_: Channel<ServerState, Event>)
+			for ongoingTask in tasks do
+				task.cancel(ongoingTask)
+			end
+
+			channels[channel.id] = nil
 		end
 
 		channels[channel.id] = channel
