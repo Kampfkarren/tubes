@@ -49,10 +49,6 @@ local function useChannel<ServerState, Event>(
 		React.useState(defaultNetworkState(channelId, initialState))
 
 	React.useEffect(function(): (() -> ())?
-		if channelId == nil then
-			return nil
-		end
-
 		setNetworkState(function(currentNetworkState)
 			currentNetworkState = table.clone(currentNetworkState)
 
@@ -76,6 +72,10 @@ local function useChannel<ServerState, Event>(
 
 			return currentNetworkState
 		end)
+
+		if channelId == nil then
+			return nil
+		end
 
 		local disconnectOnInitialState = context.onInitialStateCallback(function(receiveChannelId, state)
 			setNetworkState(function(currentState)
@@ -228,9 +228,7 @@ local function useChannel<ServerState, Event>(
 		end
 	end, { channelId })
 
-	-- TODO: Validate that this works in React 17 and not just 18
 	if channelId ~= networkState.channelId then
-		setNetworkState(defaultNetworkState(channelId, initialState))
 		return if channelId == nil then initialState else nil, sendEvent
 	end
 

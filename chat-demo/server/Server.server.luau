@@ -8,21 +8,27 @@ local Tubes = require(ReplicatedStorage.Packages.Tubes)
 
 local network = Tubes.createNetwork()
 
-local generalChannel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
-Workspace:SetAttribute("GeneralChannel", generalChannel.id)
+local function createChannel()
+	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
 
-Players.PlayerAdded:Connect(function(player)
-	generalChannel:addPlayer(player)
-	generalChannel:sendEvent({
-		type = "addMember",
-		userId = player.UserId,
-		name = player.DisplayName,
-	})
-end)
+	Players.PlayerAdded:Connect(function(player)
+		channel:addPlayer(player)
+		channel:sendEvent({
+			type = "addMember",
+			userId = player.UserId,
+			name = player.DisplayName,
+		})
+	end)
 
-Players.PlayerRemoving:Connect(function(player)
-	generalChannel:sendEvent({
-		type = "removeMember",
-		userId = player.UserId,
-	})
-end)
+	Players.PlayerRemoving:Connect(function(player)
+		channel:sendEvent({
+			type = "removeMember",
+			userId = player.UserId,
+		})
+	end)
+
+	return channel.id
+end
+
+Workspace:SetAttribute("Channel1", createChannel())
+Workspace:SetAttribute("Channel2", createChannel())

@@ -1,6 +1,6 @@
 [package]
-name = "ytmnd2/tubes"
-version = "0.1.0"
+name = "kampfkarren/tubes"
+version = "0.0.1"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 

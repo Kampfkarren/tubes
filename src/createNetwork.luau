@@ -55,6 +55,11 @@ local function createNetwork(): Network
 			return
 		end
 
+		if channel._players[player] == nil then
+			warn(`{player} sent to channel {channelId} which they aren't in`)
+			return
+		end
+
 		channel:_receiveMessage(player, nonce, ...)
 	end)
 

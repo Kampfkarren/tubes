@@ -16,8 +16,37 @@ local function createNextOrder()
 	end
 end
 
+local function ChannelButton(props: {
+	layoutOrder: number,
+	onClick: () -> (),
+	selected: boolean,
+	text: string,
+})
+	return e("TextButton", {
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Font = if props.selected then Enum.Font.GothamBold else Enum.Font.Gotham,
+		LayoutOrder = props.layoutOrder,
+		Size = UDim2.fromScale(1, 0),
+		Text = props.text,
+		TextSize = 24,
+		TextXAlignment = Enum.TextXAlignment.Left,
+
+		[React.Event.Activated] = props.onClick,
+	}, {
+		UIPadding = e("UIPadding", {
+			PaddingLeft = UDim.new(0, 4),
+			PaddingRight = UDim.new(0, 4),
+			PaddingTop = UDim.new(0, 4),
+			PaddingBottom = UDim.new(0, 4),
+		}),
+	})
+end
+
 local function ChatWindow(props: {
 	channelId: string?,
+	possibleChannels: { string }?,
 })
 	local userId = Tubes.useLocalUserId()
 
@@ -33,8 +62,9 @@ local function ChatWindow(props: {
 		return newDefaultState
 	end, {})
 
+	local channelId, setChannelId = React.useState(props.channelId)
 	local serverState, sendEvent =
-		Tubes.useChannel(props.channelId, ServerState.process, defaultState, ServerState.serializers)
+		Tubes.useChannel(channelId, ServerState.process, defaultState, ServerState.serializers)
 
 	local nextOrder = createNextOrder()
 
@@ -60,6 +90,29 @@ local function ChatWindow(props: {
 				TextSize = 24,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Size = UDim2.fromScale(1, 0),
+			})
+		end
+	end
+
+	local channelButtons: { [string]: React.ReactNode } = {}
+	channelButtons.Local = e(ChannelButton, {
+		layoutOrder = 0,
+		onClick = function()
+			setChannelId(nil)
+		end,
+		selected = channelId == nil,
+		text = "Local",
+	})
+
+	if props.possibleChannels ~= nil then
+		for index, otherChannel in props.possibleChannels do
+			channelButtons["Channel" .. index] = e(ChannelButton, {
+				layoutOrder = index,
+				onClick = function()
+					setChannelId(otherChannel)
+				end,
+				selected = channelId == otherChannel,
+				text = "Channel " .. index,
 			})
 		end
 	end
@@ -101,27 +154,53 @@ local function ChatWindow(props: {
 			TextXAlignment = Enum.TextXAlignment.Left,
 		}),
 
-		Chats = e("ScrollingFrame", {
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			BackgroundColor3 = Color3.new(0.92, 0.92, 0.92),
-			BorderSizePixel = 0,
-			CanvasSize = UDim2.new(),
+		Middle = e("Frame", {
+			BackgroundTransparency = 1,
 			LayoutOrder = nextOrder(),
 			Size = UDim2.new(1, 0, 1, -100),
 		}, {
-			UIListLayout = e("UIListLayout", {
-				FillDirection = Enum.FillDirection.Vertical,
-				Padding = UDim.new(0, 8),
-				SortOrder = Enum.SortOrder.LayoutOrder,
-			}),
+			Chats = e("ScrollingFrame", {
+				AutomaticCanvasSize = Enum.AutomaticSize.Y,
+				BackgroundColor3 = Color3.new(0.92, 0.92, 0.92),
+				BorderSizePixel = 0,
+				CanvasSize = UDim2.new(),
+				Size = UDim2.new(1, -150, 1, 0),
+			}, {
+				UIListLayout = e("UIListLayout", {
+					FillDirection = Enum.FillDirection.Vertical,
+					Padding = UDim.new(0, 8),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
 
-			UIPadding = e("UIPadding", {
-				PaddingLeft = UDim.new(0, 4),
-				PaddingRight = UDim.new(0, 4),
-				PaddingTop = UDim.new(0, 4),
-				PaddingBottom = UDim.new(0, 4),
-			}),
-		}, chatMessages),
+				UIPadding = e("UIPadding", {
+					PaddingLeft = UDim.new(0, 4),
+					PaddingRight = UDim.new(0, 4),
+					PaddingTop = UDim.new(0, 4),
+					PaddingBottom = UDim.new(0, 4),
+				}),
+			}, chatMessages),
+
+			Channels = e("Frame", {
+				AnchorPoint = Vector2.new(1, 0),
+				BackgroundColor3 = Color3.new(0.92, 0.92, 0.92),
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(1, 0),
+				Size = UDim2.new(0, 130, 1, 0),
+			}, {
+				UIPadding = e("UIPadding", {
+					PaddingLeft = UDim.new(0, 4),
+					PaddingRight = UDim.new(0, 4),
+					PaddingTop = UDim.new(0, 4),
+					PaddingBottom = UDim.new(0, 4),
+				}),
+
+				UIListLayout = e("UIListLayout", {
+					FillDirection = Enum.FillDirection.Vertical,
+					Padding = UDim.new(0, 4),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+			}, channelButtons),
+		}),
 
 		ChatInput = e("Frame", {
 			BackgroundColor3 = Color3.new(0.92, 0.92, 0.92),

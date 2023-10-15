@@ -82,6 +82,9 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 	local signals = createMessageSignals()
 
+	-- We want to receive the queued signals ourselves, as well as letting useChannel read them
+	local initialStateSignal2 = createQueuedSignal()
+
 	function network.createChannel<ServerState, Event>(
 		_self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
@@ -105,6 +108,11 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			addLocalPlayer = function(self: Channel<ServerState, Event>)
 				task.delay(network.ping, function()
 					signals.initialStateSignal.fire(
+						self.id,
+						Serializers.serialize(self.state, serializers and serializers.stateSerializer)
+					)
+
+					initialStateSignal2.fire(
 						self.id,
 						Serializers.serialize(self.state, serializers and serializers.stateSerializer)
 					)
@@ -156,7 +164,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		local initialStates, setInitialStates = React.useState({})
 
 		React.useEffect(function()
-			return signals.initialStateSignal.connect(function(channelId, initialState)
+			return initialStateSignal2.connect(function(channelId, initialState)
 				setInitialStates(function(currentInitialStates)
 					assert(
 						currentInitialStates[channelId] == nil,
