@@ -1,4 +1,3 @@
--- TODO: createLogger and such for all these error and warn
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -7,6 +6,7 @@ local Tubes = script:FindFirstAncestor("Tubes")
 local Remote = require(Tubes.Remote)
 local Serializers = require(Tubes.Serializers)
 local Types = require(Tubes.Types)
+local createLogger = require(Tubes.createLogger)
 local nonceToString = require(Tubes.nonceToString)
 
 type Network = {
@@ -16,6 +16,8 @@ type Network = {
 		defaultState: ServerState,
 		serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
 	) -> Channel<ServerState, Event>,
+
+	setLogger: (self: Network, logger: Types.Logger) -> (),
 }
 
 type Channel<ServerState, Event> = {
@@ -33,6 +35,7 @@ type Channel<ServerState, Event> = {
 	_players: { [Player]: true },
 }
 
+-- You may only call this once per place.
 local function createNetwork(): Network
 	assert(
 		RunService:IsRunning() and RunService:IsServer(),
@@ -40,30 +43,37 @@ local function createNetwork(): Network
 	)
 
 	local remoteEvent = Remote.getOrCreateRemoteEvent()
+	local logger = createLogger("Network")
 
 	local channels: { [string]: Channel<any, any> } = {}
+	local channelNonce = 0
 
 	remoteEvent.OnServerEvent:Connect(function(player: Player, channelId: string, nonce: string, ...)
-		assert(typeof(channelId) == "string", "Expected channelId to be a string")
-		assert(typeof(nonce) == "string", "Expected nonce to be a string")
+		if typeof(channelId) ~= "string" then
+			logger.warn("{} sent to channel {} which isn't a string", player, channelId)
+			return
+		end
+
+		if typeof(nonce) ~= "string" then
+			logger.warn("{} sent to channel {} which isn't a string", player, nonce)
+			return
+		end
 
 		local channel = channels[channelId]
 
 		-- Possible if the player sends a message after it's already destroyed, and before they've gotten that message
 		if channel == nil then
-			warn(`{player} sent to channel {channelId} which doesn't exist`)
+			logger.warn("{} sent to channel {} which doesn't exist", player, channelId)
 			return
 		end
 
 		if channel._players[player] == nil then
-			warn(`{player} sent to channel {channelId} which they aren't in`)
+			logger.warn("{} sent to channel {} which they aren't in", player, channelId)
 			return
 		end
 
 		channel:_receiveMessage(player, nonce, ...)
 	end)
-
-	local channelNonce = 0
 
 	local network = {}
 
@@ -137,22 +147,33 @@ local function createNetwork(): Network
 			eventSerialized: Event
 		)
 			if destroyed then
-				warn(`{player} sent to channel {channel.id} which has been destroyed`)
+				logger.warn("{} sent to channel {} which has been destroyed", player, channel.id)
 				return
 			end
 
 			local successDeserialize, event =
 				pcall(Serializers.deserialize, eventSerialized, serializers and serializers.eventSerializer)
 			if not successDeserialize then
-				warn(`{player} sent to channel {channel.id} with invalid serialized event:\n{eventSerialized}`)
+				logger.warn(
+					"{} sent to channel {} with invalid serialized event:\n{}",
+					player,
+					channel.id,
+					eventSerialized
+				)
+
 				sendRemote(player, Remote.clientPacketTypeReceiveMessageError, nonce)
 				return
 			end
 
 			local successProcess, result = pcall(processEvent, channel.state, event, player.UserId)
 			if not successProcess then
-				-- TODO: Include event data as {:?}
-				warn(`Event sent by {player} resulted in an error:\n{result}`)
+				logger.warn(
+					"Event sent by {} resulted in an error:\n{}\nDeserialized event: {:#?}",
+					player,
+					result,
+					event
+				)
+
 				sendRemote(player, Remote.clientPacketTypeReceiveMessageError, nonce)
 				return
 			end
@@ -176,6 +197,10 @@ local function createNetwork(): Network
 		channels[channel.id] = channel
 
 		return channel
+	end
+
+	function network.setLogger(_: Network, newLogger: Types.Logger)
+		logger = newLogger
 	end
 
 	Players.PlayerRemoving:Connect(function(player)

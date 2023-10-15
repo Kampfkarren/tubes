@@ -14,4 +14,13 @@ export type ChannelSerializers<ServerState, ServerStateSerialized, Event, EventS
 	stateSerializer: Serializer<ServerState, ServerStateSerialized>?,
 }
 
+-- These take in a message and Rust-style format strings.
+-- E.g. `logger.debug("Hello {}", "world")`
+-- https://github.com/rojo-rbx/rojo/blob/master/plugin/fmt/init.lua has the implementation of formatting.
+export type Logger = {
+	debug: (message: string, ...any) -> (),
+	warn: (message: string, ...any) -> (),
+	error: (message: string, ...any) -> (),
+}
+
 return {}
