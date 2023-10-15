@@ -4,7 +4,6 @@ export type ProcessEvent<ServerState, Event> = (
 	userId: number?
 ) -> ServerState
 
--- TODO: Use in useChannel for both events and initial state
 export type Serializer<T, TSerialized...> = {
 	serialize: (T) -> TSerialized...,
 	deserialize: (TSerialized...) -> T,
