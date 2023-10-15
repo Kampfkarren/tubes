@@ -30,7 +30,7 @@ type Channel<ServerState, Event> = {
 	destroy: (self: Channel<ServerState, Event>) -> (),
 	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
 
-	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: Event) -> (),
+	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: unknown) -> (),
 	_players: { [Player]: true },
 }
 
