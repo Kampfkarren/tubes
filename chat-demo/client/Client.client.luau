@@ -40,6 +40,10 @@ root:render(ReactRoblox.createPortal(
 					channel1Id,
 					channel2Id,
 				},
+
+				reconnect = function(channelId)
+					ReplicatedStorage.Demo.Reconnect:FireServer(channelId)
+				end,
 			})
 		)
 	),

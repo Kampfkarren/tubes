@@ -19,6 +19,7 @@ local function defaultChannelState(): Context.ChannelState<unknown, unknown>
 		serverState = nil,
 
 		pendingEvents = {},
+
 		pendingServerEvents = {},
 	}
 end
@@ -49,6 +50,9 @@ local function BaseProvider(props: {
 	local channelStates: { [string]: Context.ChannelState<unknown, unknown> }, setChannelStates =
 		React.useState(deepFreeze({}))
 
+	local sentNoncesRef = React.useRef({} :: { [string]: boolean })
+	assert(sentNoncesRef.current ~= nil, "Luau")
+
 	React.useEffect(function()
 		local disconnectOnInitialStateCallback = props.onInitialStateCallback(function(channelId, serverState)
 			setChannelStates(function(currentChannelStates)
@@ -56,10 +60,6 @@ local function BaseProvider(props: {
 
 				local currentState = currentChannelStates[channelId]
 				assert(currentState == nil or currentState.serverState == nil, "Received initial state twice")
-
-				if currentState ~= nil and (currentState.serverState == nil and #currentState.pendingEvents > 0) then
-					error("NYI: Send previously pending events (and make sure this only happens once)")
-				end
 
 				currentState = if currentState then table.clone(currentState) else defaultChannelState()
 				currentState.serverState = if currentState.schema
@@ -119,6 +119,8 @@ local function BaseProvider(props: {
 
 		local disconnectOnReceiveMessageSuccessCallback = props.onReceiveMessageSuccessCallback(
 			function(channelId, nonce)
+				sentNoncesRef.current[nonce] = nil
+
 				setChannelStates(function(currentChannelStates)
 					currentChannelStates = table.clone(currentChannelStates)
 
@@ -205,7 +207,7 @@ local function BaseProvider(props: {
 		local nonce = nonceToString(nonceRef.current)
 		nonceRef.current += 1
 
-		props.sendEventToChannel(channelId, nonce, serializedEvent)
+		-- props.sendEventToChannel(channelId, nonce, serializedEvent)
 
 		setChannelStates(function(currentChannelStates)
 			currentChannelStates = table.clone(currentChannelStates)
@@ -319,6 +321,32 @@ local function BaseProvider(props: {
 		end,
 		{}
 	)
+
+	-- Don't send the event until we actually connect to something.
+	React.useEffect(function()
+		for channelId, channelState in channelStates do
+			if channelState.serverState ~= nil and channelState.serverState.type == "ready" then
+				assert(channelState.schema ~= nil, "Pending events for channel without schema")
+
+				for _, pendingEvent in channelState.pendingEvents do
+					if sentNoncesRef.current[pendingEvent.nonce] then
+						continue
+					end
+
+					sentNoncesRef.current[pendingEvent.nonce] = true
+
+					props.sendEventToChannel(
+						channelId,
+						pendingEvent.nonce,
+						Serializers.serialize(
+							pendingEvent.event,
+							channelState.schema.serializers and channelState.schema.serializers.eventSerializer
+						)
+					)
+				end
+			end
+		end
+	end, { channelStates })
 
 	local context: Context.ContextType = {
 		localUserId = props.localUserId,

@@ -48,7 +48,9 @@ local function ChatWindow(props: {
 	channelId: string?,
 	possibleChannels: { string }?,
 
-	disconnect: () -> ()?,
+	reconnect: (channelId: string) -> ()?,
+
+	onSendMessage: () -> ()?,
 })
 	local userId = Tubes.useLocalUserId()
 
@@ -204,18 +206,20 @@ local function ChatWindow(props: {
 				}),
 			}, channelButtons),
 
-			Disconnect = props.disconnect and e("TextButton", {
+			Reconnect = props.reconnect and channelId and e("TextButton", {
 				AnchorPoint = Vector2.new(1, 1),
 				BackgroundColor3 = Color3.fromHex("#3498db"),
 				BorderSizePixel = 0,
 				Font = Enum.Font.Gotham,
 				Position = UDim2.fromScale(1, 1),
 				Size = UDim2.new(0, 130, 0, 32),
-				Text = "Disconnect",
+				Text = "Reconnect",
 				TextColor3 = Color3.new(1, 1, 1),
 				TextSize = 20,
 
-				[React.Event.Activated] = props.disconnect,
+				[React.Event.Activated] = function()
+					props.reconnect(channelId)
+				end,
 			}),
 		}),
 
@@ -251,6 +255,10 @@ local function ChatWindow(props: {
 						type = "chat",
 						contents = textBox.Text,
 					})
+
+					if props.onSendMessage ~= nil then
+						props.onSendMessage()
+					end
 
 					textBox.Text = ""
 

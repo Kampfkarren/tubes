@@ -6,15 +6,14 @@ local Tubes = script:FindFirstAncestor("Tubes")
 local React = require(Tubes.Parent.React)
 
 local BaseProvider = require(Tubes.BaseProvider)
-local Context = require(Tubes.Context)
 local Serializers = require(Tubes.Serializers)
-local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
 local createQueuedSignal = require(Tubes.createQueuedSignal)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
 
+-- TODO: Destroy to clear tasks
 type Network = {
 	createChannel: <ServerState, Event>(
 		self: Network,
@@ -128,14 +127,15 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?)
 			channel.state = processEvent(channel.state, event, userId)
-
-			task.delay(network.ping, function()
-				signals.receiveMessageSignal.fire(
-					channel.id,
-					userId,
-					Serializers.serialize(event, serializers and serializers.eventSerializer)
-				)
-			end)
+			if localPlayerAdded then
+				task.delay(network.ping, function()
+					signals.receiveMessageSignal.fire(
+						channel.id,
+						userId,
+						Serializers.serialize(event, serializers and serializers.eventSerializer)
+					)
+				end)
+			end
 		end
 
 		local shouldErrorCallback = function(_: Event)
