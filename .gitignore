@@ -5,3 +5,5 @@ sourcemap.json
 
 /DevPackages
 /Packages
+
+globalTypes.d.lua
