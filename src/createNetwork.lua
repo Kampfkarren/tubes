@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Tubes = script:FindFirstAncestor("Tubes")
+local Tubes = script.Parent
 
 local Remote = require(Tubes.Remote)
 local Serializers = require(Tubes.Serializers)

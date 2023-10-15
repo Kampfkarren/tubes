@@ -1,4 +1,4 @@
-local Tubes = script:FindFirstAncestor("Tubes")
+local Tubes = script.Parent
 
 local Types = require(Tubes.Types)
 local fmt = require(Tubes.fmt)

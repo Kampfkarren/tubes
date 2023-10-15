@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 
-local Tubes = script:FindFirstAncestor("Tubes")
+local Tubes = script.Parent
 
 local React = require(Tubes.Parent.React)
 
