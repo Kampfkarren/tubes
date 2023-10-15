@@ -41,7 +41,7 @@ local function BaseProvider(props: {
 	onReceiveMessageErrorCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
 	onReceiveMessageSuccessCallback: (callback: (channelId: string, nonce: string) -> ()) -> Destructor,
 
-	sendEventToChannel: (channelId: string, nonce: string, event: unknown, serializedEvent: unknown) -> (),
+	sendEventToChannel: (channelId: string, nonce: string, serializedEvent: unknown) -> (),
 
 	children: React.ReactNode,
 })
@@ -310,7 +310,6 @@ local function BaseProvider(props: {
 
 		lock = lock,
 	}
-	print("states", channelStates)
 
 	return e(Context.Provider, {
 		value = context,

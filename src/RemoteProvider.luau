@@ -4,6 +4,7 @@ local Tubes = script:FindFirstAncestor("Tubes")
 
 local React = require(Tubes.Parent.React)
 
+local BaseProvider = require(Tubes.BaseProvider)
 local Context = require(Tubes.Context)
 local Remote = require(Tubes.Remote)
 local Signal = require(Tubes.Signal)
@@ -31,8 +32,6 @@ local function RemoteProvider(props: {
 	local existingContext = React.useContext(Context)
 	assert(existingContext.default, "You cannot mount two Tubes providers")
 
-	local initialStates, setInitialStates = React.useState({})
-
 	local initialStateSignal, onInitialStateCallback = useSignal()
 	local receiveMessageSignal, onReceiveMessageCallback = useSignal()
 	local receiveMessageErrorSignal, onReceiveMessageErrorCallback = useSignal()
@@ -54,14 +53,6 @@ local function RemoteProvider(props: {
 				elseif packetType == Remote.clientPacketTypeReceiveMessageError then
 					receiveMessageErrorSignal:Fire(...)
 				elseif packetType == Remote.clientPacketTypeSendInitialState then
-					local channelId, state = ...
-
-					setInitialStates(function(currentInitialStates)
-						currentInitialStates = table.clone(currentInitialStates)
-						currentInitialStates[channelId] = state
-						return currentInitialStates
-					end)
-
 					initialStateSignal:Fire(...)
 				else
 					error(`Unknown packet type sent from server: {packetType}`)
@@ -83,9 +74,8 @@ local function RemoteProvider(props: {
 		remoteEvent:FireServer(channelId, nonce, event)
 	end, {})
 
-	local context: Context.ContextType = {
+	return e(BaseProvider, {
 		localUserId = LocalPlayer.UserId,
-		initialStates = initialStates,
 
 		onInitialStateCallback = onInitialStateCallback,
 		onReceiveMessageCallback = onReceiveMessageCallback,
@@ -93,10 +83,6 @@ local function RemoteProvider(props: {
 		onReceiveMessageSuccessCallback = onReceiveMessageSuccessCallback,
 
 		sendEventToChannel = sendEventToChannel,
-	}
-
-	return e(Context.Provider, {
-		value = context,
 	}, props.children)
 end
 
