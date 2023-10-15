@@ -30,7 +30,6 @@ type Channel<ServerState, Event> = {
 	destroy: (self: Channel<ServerState, Event>) -> (),
 	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
 
-	-- TODO: With serialization, this must become the serialized representation
 	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: Event) -> (),
 	_players: { [Player]: true },
 }
