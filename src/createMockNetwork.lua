@@ -39,7 +39,7 @@ type Channel<ServerState, Event> = {
 
 	destroy: (self: Channel<ServerState, Event>) -> (),
 
-	onReceiveEvent: Signal.Signal<Event>,
+	onReceiveEvent: Signal.Signal<unknown>,
 	_receiveEvent: (self: Channel<ServerState, Event>, nonce: string, event: Event) -> (),
 }
 

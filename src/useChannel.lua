@@ -5,7 +5,6 @@ local React = require(Tubes.Parent.React)
 local Context = require(Tubes.Context)
 local Serializers = require(Tubes.Serializers)
 local Types = require(Tubes.Types)
-local nonceToString = require(Tubes.nonceToString)
 
 -- You are allowed to change channelId at runtime, but the resulting
 -- state will not be updated immediately.

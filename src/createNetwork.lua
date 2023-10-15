@@ -143,7 +143,7 @@ local function createNetwork(): Network
 			_: Channel<ServerState, Event>,
 			player: Player,
 			nonce: string,
-			eventSerialized: Event
+			eventSerialized: unknown
 		)
 			if destroyed then
 				logger.warn("{} sent to channel {} which has been destroyed", player, channel.id)

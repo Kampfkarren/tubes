@@ -203,7 +203,7 @@ local function BaseProvider(props: {
 
 	local nonceRef = React.useRef(0)
 	assert(nonceRef.current ~= nil, "Luau")
-	local sendEventToChannel = React.useCallback(function(channelId: string, event: unknown, serializedEvent: unknown)
+	local sendEventToChannel = React.useCallback(function(channelId: string, event: unknown)
 		local nonce = nonceToString(nonceRef.current)
 		nonceRef.current += 1
 
