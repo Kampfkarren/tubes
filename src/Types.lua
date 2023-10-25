@@ -23,4 +23,9 @@ export type Logger = {
 	error: (message: string, ...any) -> (),
 }
 
+export type StatefulEventCallback<ServerState, Event> = (
+	serverState: ServerState,
+	queueEvent: (Event) -> ServerState
+) -> ()
+
 return {}

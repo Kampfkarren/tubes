@@ -3,12 +3,12 @@ local Tubes = script.Parent
 local React = require(Tubes.Parent.React)
 
 local Context = require(Tubes.Context)
-local Serializers = require(Tubes.Serializers)
 local Types = require(Tubes.Types)
+local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
 
 -- You are allowed to change channelId at runtime, but the resulting
 -- state will not be updated immediately.
--- initialState, processEvent, and serializers, however, cannot.
+-- initialState, processEvent, and schema, however, cannot.
 -- Does not connect/disconnect from the channel on its own.
 -- It is the responsibility of the server to handle that process.
 -- Only one useChannel can be active per non-local channel ID.
@@ -16,8 +16,11 @@ local function useChannel<ServerState, Event>(
 	channelId: string?,
 	processEvent: Types.ProcessEvent<ServerState, Event>,
 	initialState: ServerState?,
+	-- TODO: Change to schemas and have an equality check parameter that lets you decide when the event sends to the server
 	serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
-): (ServerState?, (Event) -> ())
+): (ServerState?, (
+	Event | Types.StatefulEventCallback<ServerState, Event>
+) -> ())
 	local context = React.useContext(Context)
 
 	assert(channelId == nil or not context.default, "Tubes context is not provided, but a channel ID is.")
@@ -25,10 +28,22 @@ local function useChannel<ServerState, Event>(
 
 	local localState, setLocalState = React.useState(initialState)
 
-	local sendLocalEvent = React.useCallback(function(event: Event)
-		setLocalState(function(currentLocalState)
-			return processEvent(currentLocalState, event, context.localUserId)
-		end)
+	local sendLocalEvent = React.useCallback(function(event: Event | Types.StatefulEventCallback<ServerState, Event>)
+		if typeof(event) == "function" then
+			setLocalState(function(currentLocalState)
+				return callStatefulEventCallback(
+					event,
+					currentLocalState,
+					function() end,
+					processEvent,
+					context.localUserId
+				)
+			end)
+		else
+			setLocalState(function(currentLocalState)
+				return processEvent(currentLocalState, event, context.localUserId)
+			end)
+		end
 	end, {})
 
 	React.useEffect(function(): (() -> ())?
@@ -50,14 +65,10 @@ local function useChannel<ServerState, Event>(
 			context.channelStates[channelId] :: Context.ChannelState<any, any>
 		) :: Context.ChannelState<ServerState, Event>
 
-	local sendEvent = React.useCallback(function(event: Event)
+	local sendEvent = React.useCallback(function(event: Event | Types.StatefulEventCallback<ServerState, Event>)
 		assert(channelId ~= nil, "Networked sendEvent called with local channelId")
 
-		context.sendEventToChannel(
-			channelId,
-			event,
-			Serializers.serialize(event, serializers and serializers.eventSerializer)
-		)
+		context.sendEventToChannel(channelId, event)
 	end, { channelId })
 
 	if channelId == nil then

@@ -35,6 +35,8 @@ export type ChannelState<ServerState, Event> = {
 		serializedState: unknown,
 	} | nil,
 
+	nextNonce: number,
+
 	pendingEvents: { PendingEvent<Event> },
 
 	-- Events sent from the server before we know how to deserialize them, thus serialized.

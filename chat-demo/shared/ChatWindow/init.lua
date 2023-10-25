@@ -51,6 +51,10 @@ local function ChatWindow(props: {
 	reconnect: (channelId: string) -> ()?,
 
 	onSendMessage: () -> ()?,
+	replaceSendEvent: (
+		sendEvent: typeof(select(2, Tubes.useChannel("", ServerState.process, ServerState.defaultState))),
+		contents: string
+	) -> ()?,
 })
 	local userId = Tubes.useLocalUserId()
 
@@ -251,10 +255,14 @@ local function ChatWindow(props: {
 						return
 					end
 
-					sendEvent({
-						type = "chat",
-						contents = textBox.Text,
-					})
+					if props.replaceSendEvent == nil then
+						sendEvent({
+							type = "chat",
+							contents = textBox.Text,
+						})
+					else
+						props.replaceSendEvent(sendEvent, textBox.Text)
+					end
 
 					if props.onSendMessage ~= nil then
 						props.onSendMessage()

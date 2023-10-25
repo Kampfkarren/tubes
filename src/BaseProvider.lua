@@ -4,6 +4,8 @@ local React = require(Tubes.Parent.React)
 
 local Context = require(Tubes.Context)
 local Serializers = require(Tubes.Serializers)
+local Types = require(Tubes.Types)
+local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
 local deepFreeze = require(Tubes.deepFreeze)
 local nonceToString = require(Tubes.nonceToString)
 
@@ -17,6 +19,8 @@ local function defaultChannelState(): Context.ChannelState<unknown, unknown>
 		schema = nil,
 
 		serverState = nil,
+
+		nextNonce = 1,
 
 		pendingEvents = {},
 
@@ -201,35 +205,58 @@ local function BaseProvider(props: {
 		end
 	end, {})
 
-	local nonceRef = React.useRef(0)
-	assert(nonceRef.current ~= nil, "Luau")
-	local sendEventToChannel = React.useCallback(function(channelId: string, event: unknown)
-		local nonce = nonceToString(nonceRef.current)
-		nonceRef.current += 1
+	local sendEventToChannel = React.useCallback(
+		function<ServerState, Event>(channelId: string, event: Event | Types.StatefulEventCallback<ServerState, Event>)
+			setChannelStates(function(currentChannelStates)
+				currentChannelStates = table.clone(currentChannelStates)
 
-		-- props.sendEventToChannel(channelId, nonce, serializedEvent)
+				local currentState = currentChannelStates[channelId]
+				assert(currentState ~= nil, "sendEventToChannel called for unknown channel")
 
-		setChannelStates(function(currentChannelStates)
-			currentChannelStates = table.clone(currentChannelStates)
+				currentState = table.clone(currentState)
 
-			local currentState = currentChannelStates[channelId]
-			assert(currentState ~= nil, "sendEventToChannel called for unknown channel")
+				local function nextNonce()
+					local nonce = nonceToString(currentState.nextNonce)
+					currentState.nextNonce += 1
+					return nonce
+				end
 
-			currentState = table.clone(currentState)
-			currentState.pendingEvents = table.clone(currentState.pendingEvents)
+				currentState.pendingEvents = table.clone(currentState.pendingEvents)
 
-			table.insert(currentState.pendingEvents, {
-				event = event,
-				nonce = nonce,
-			})
+				if typeof(event) == "function" then
+					assert(
+						currentState.serverState ~= nil and currentState.serverState.type == "ready",
+						"Stateful event callback needs to have a non-nil state. In the future this may queue."
+					)
 
-			currentChannelStates[channelId] = currentState
+					assert(currentState.schema ~= nil, "Channel schema doesn't exist")
 
-			return deepFreeze(currentChannelStates)
-		end)
+					callStatefulEventCallback(
+						event,
+						currentState.serverState.state :: ServerState,
+						function(queuedEvent)
+							table.insert(currentState.pendingEvents, {
+								event = queuedEvent,
+								nonce = nextNonce(),
+							})
+						end,
+						currentState.schema.processEvent :: any,
+						props.localUserId
+					)
+				else
+					table.insert(currentState.pendingEvents, {
+						event = event,
+						nonce = nextNonce(),
+					})
+				end
 
-		return nonce
-	end, {})
+				currentChannelStates[channelId] = currentState
+
+				return deepFreeze(currentChannelStates)
+			end)
+		end,
+		{}
+	)
 
 	local lock = React.useCallback(
 		function<ServerState, Event>(channelId: string, schema: Context.ChannelSchema<ServerState, Event>)
@@ -353,7 +380,7 @@ local function BaseProvider(props: {
 
 		channelStates = channelStates,
 
-		sendEventToChannel = sendEventToChannel,
+		sendEventToChannel = sendEventToChannel :: any,
 
 		lock = lock,
 	}
