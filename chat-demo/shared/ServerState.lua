@@ -69,12 +69,13 @@ function ServerState.process(state: ServerState, event: Event, userId: number?):
 		return state
 	else
 		local _: never = event.type
+		print(event, type(event))
 		error(`Unexpected event {event.type}`)
 	end
 end
 
 -- Example of serializers. Not actually more optimized :)
-ServerState.serializers = {
+ServerState.schema = {
 	eventSerializer = {
 		serialize = function(state: Event)
 			return HttpService:JSONEncode(state)
@@ -94,6 +95,20 @@ ServerState.serializers = {
 			return HttpService:JSONDecode(serialized)
 		end,
 	},
+
+	shouldSend = function(newState: ServerState, oldState: ServerState)
+		if newState == oldState then
+			return false
+		end
+
+		local lastNewMessage = newState.messages[#newState.messages]
+
+		if lastNewMessage == nil then
+			return true
+		end
+
+		return lastNewMessage.contents ~= "nosend"
+	end,
 }
 
 return ServerState

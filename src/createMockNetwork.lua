@@ -19,7 +19,7 @@ type Network = {
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
 	) -> Channel<ServerState, Event>,
 
 	localUserId: number,
@@ -94,12 +94,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		_: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		serializers: Types.ChannelSerializers<
-			ServerState,
-			unknown,
-			Event,
-			unknown
-		>?
+		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
 	): Channel<ServerState, Event>
 		local channel = {}
 
@@ -128,7 +123,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			afterPing(function()
 				signals.initialStateSignal.fire(
 					channel.id,
-					Serializers.serialize(channel.state, serializers and serializers.stateSerializer)
+					Serializers.serialize(channel.state, schema and schema.stateSerializer)
 				)
 			end)
 		end
@@ -149,7 +144,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 					signals.receiveMessageSignal.fire(
 						channel.id,
 						userId,
-						Serializers.serialize(event, serializers and serializers.eventSerializer)
+						Serializers.serialize(event, schema and schema.eventSerializer)
 					)
 				end)
 			end
@@ -172,7 +167,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			channel.onReceiveEvent:Fire(event)
 
 			task.delay(network.ping, function()
-				local deserializedEvent = Serializers.deserialize(event, serializers and serializers.eventSerializer)
+				local deserializedEvent = Serializers.deserialize(event, schema and schema.eventSerializer)
 
 				if shouldErrorCallback(deserializedEvent) then
 					signals.receiveMessageErrorSignal.fire(channel.id, nonce)

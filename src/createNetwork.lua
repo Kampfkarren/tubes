@@ -14,7 +14,7 @@ type Network = {
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
 	) -> Channel<ServerState, Event>,
 
 	setLogger: (self: Network, logger: Types.Logger) -> (),
@@ -80,12 +80,7 @@ local function createNetwork(): Network
 		_network: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		serializers: Types.ChannelSerializers<
-			ServerState,
-			unknown,
-			Event,
-			unknown
-		>?
+		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
 	): Channel<ServerState, Event>
 		local destroyed = false
 
@@ -107,7 +102,7 @@ local function createNetwork(): Network
 			sendRemote(
 				player,
 				Remote.clientPacketTypeSendInitialState,
-				Serializers.serialize(self.state, serializers and serializers.stateSerializer)
+				Serializers.serialize(self.state, schema and schema.stateSerializer)
 			)
 		end
 
@@ -129,7 +124,7 @@ local function createNetwork(): Network
 					player,
 					Remote.clientPacketTypeReceiveMessage,
 					nil,
-					Serializers.serialize(event, serializers and serializers.eventSerializer)
+					Serializers.serialize(event, schema and schema.eventSerializer)
 				)
 			end
 		end
@@ -151,7 +146,7 @@ local function createNetwork(): Network
 			end
 
 			local successDeserialize, event =
-				pcall(Serializers.deserialize, eventSerialized, serializers and serializers.eventSerializer)
+				pcall(Serializers.deserialize, eventSerialized, schema and schema.eventSerializer)
 			if not successDeserialize then
 				logger.warn(
 					"{} sent to channel {} with invalid serialized event:\n{}",
@@ -187,7 +182,7 @@ local function createNetwork(): Network
 						listeningPlayer,
 						Remote.clientPacketTypeReceiveMessage,
 						player.UserId,
-						Serializers.serialize(event, serializers and serializers.eventSerializer)
+						Serializers.serialize(event, schema and schema.eventSerializer)
 					)
 				end
 			end

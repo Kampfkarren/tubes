@@ -71,8 +71,7 @@ local function ChatWindow(props: {
 	end, {})
 
 	local channelId, setChannelId = React.useState(props.channelId)
-	local serverState, sendEvent =
-		Tubes.useChannel(channelId, ServerState.process, defaultState, ServerState.serializers)
+	local serverState, sendEvent = Tubes.useChannel(channelId, ServerState.process, defaultState, ServerState.schema)
 
 	local nextOrder = createNextOrder()
 

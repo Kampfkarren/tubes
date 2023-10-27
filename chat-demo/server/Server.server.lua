@@ -10,7 +10,7 @@ local network = Tubes.createNetwork()
 local channels = {}
 
 local function createChannel()
-	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
+	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.schema)
 	channels[channel.id] = channel
 
 	Players.PlayerAdded:Connect(function(player)

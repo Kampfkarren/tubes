@@ -6,10 +6,13 @@ local Context = require(Tubes.Context)
 local Serializers = require(Tubes.Serializers)
 local Types = require(Tubes.Types)
 local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
+local createLogger = require(Tubes.createLogger)
 local deepFreeze = require(Tubes.deepFreeze)
 local nonceToString = require(Tubes.nonceToString)
 
 local e = React.createElement
+
+local logger = createLogger("BaseProvider")
 
 type Destructor = () -> ()
 
@@ -38,6 +41,76 @@ local function findByNonce<Event>(pendingEvents: { Context.PendingEvent<Event> }
 	error("Received message for unknown nonce")
 end
 
+local function getShouldSend<ServerState>(
+	channelSchema: Context.ChannelSchema<ServerState, unknown>
+): (new: ServerState, old: ServerState) -> boolean
+	return (channelSchema.providedSchema and channelSchema.providedSchema.shouldSend)
+		or function(x, y)
+			return x ~= y
+		end :: never
+end
+
+type ChannelStates = { [string]: Context.ChannelState<unknown, unknown> }
+
+local function shiftSendBlocked(userId: number, channelStates: ChannelStates): ChannelStates
+	local changed = false
+
+	for index, channelState in channelStates do
+		if #channelState.pendingEvents == 0 or not channelState.pendingEvents[1].sendBlocked then
+			continue
+		end
+
+		if channelState.serverState == nil or channelState.serverState.type ~= "ready" then
+			continue
+		end
+		assert(channelState.serverState ~= nil and channelState.serverState.type == "ready", "Luau")
+
+		assert(channelState.schema ~= nil, "Channel has no schema, but does have pending events and a server state")
+
+		local shouldSend = getShouldSend(channelState.schema)
+
+		if not changed then
+			changed = true
+			channelStates = table.clone(channelStates)
+		end
+
+		local oldestState = channelState.serverState.state
+		local currentState = oldestState
+
+		local newChannelState = table.clone(channelState)
+		newChannelState.pendingEvents = table.clone(newChannelState.pendingEvents)
+		channelStates[index] = newChannelState
+
+		while #newChannelState.pendingEvents > 0 and newChannelState.pendingEvents[1].sendBlocked do
+			local blockedPendingEvent = assert(table.remove(newChannelState.pendingEvents, 1), "Luau")
+
+			local stateAfterUpdate =
+				channelState.schema.processEvent(channelState.serverState.state, blockedPendingEvent.event, userId)
+
+			if shouldSend(stateAfterUpdate, currentState) then
+				logger.warn(
+					"{:?} wasn't going to send, but after processing it would've caused a desync. Removing it from pending.",
+					blockedPendingEvent.event
+				)
+
+				continue
+			end
+
+			logger.debug("{:?} wasn't going to send, and still won't", blockedPendingEvent.event)
+
+			currentState = stateAfterUpdate
+		end
+
+		if currentState ~= oldestState then
+			local newState = table.clone(channelState.serverState)
+			newState.state = currentState
+			newChannelState.serverState = newState
+		end
+	end
+
+	return channelStates
+end
+
 local function BaseProvider(props: {
 	localUserId: number,
 
@@ -51,8 +124,24 @@ local function BaseProvider(props: {
 
 	children: React.ReactNode,
 })
-	local channelStates: { [string]: Context.ChannelState<unknown, unknown> }, setChannelStates =
-		React.useState(deepFreeze({}))
+	local channelStates: ChannelStates, setChannelStatesRaw = React.useState(deepFreeze({}))
+
+	local setChannelStates = React.useCallback(
+		function(channelStatesOrSetter: ChannelStates | (ChannelStates) -> ChannelStates)
+			setChannelStatesRaw(function(currentChannelStates)
+				local newChannelStates = if typeof(channelStatesOrSetter) == "function"
+					then channelStatesOrSetter(currentChannelStates)
+					else currentChannelStates
+
+				if newChannelStates == currentChannelStates then
+					return currentChannelStates
+				end
+
+				return deepFreeze(shiftSendBlocked(props.localUserId, newChannelStates))
+			end)
+		end,
+		{}
+	)
 
 	local sentNoncesRef = React.useRef({} :: { [string]: boolean })
 	assert(sentNoncesRef.current ~= nil, "Luau")
@@ -71,7 +160,7 @@ local function BaseProvider(props: {
 						type = "ready",
 						state = Serializers.deserialize(
 							serverState,
-							currentState.schema.serializers and currentState.schema.serializers.stateSerializer
+							currentState.schema.providedSchema and currentState.schema.providedSchema.stateSerializer
 						),
 					}
 					else {
@@ -110,7 +199,7 @@ local function BaseProvider(props: {
 						currentState.serverState.state,
 						Serializers.deserialize(
 							event,
-							currentState.schema.serializers and currentState.schema.serializers.eventSerializer
+							currentState.schema.providedSchema and currentState.schema.providedSchema.eventSerializer
 						),
 						userId
 					)
@@ -283,7 +372,7 @@ local function BaseProvider(props: {
 							type = "ready",
 							state = Serializers.deserialize(
 								currentChannel.serverState.serializedState,
-								schema.serializers and schema.serializers.stateSerializer
+								schema.providedSchema and schema.providedSchema.stateSerializer
 							),
 						}
 						else currentChannel.serverState
@@ -291,7 +380,7 @@ local function BaseProvider(props: {
 					if currentChannel ~= nil and currentChannel.schema ~= nil then
 						assert(
 							currentChannel.schema.processEvent == schema.processEvent
-								and currentChannel.schema.serializers == schema.serializers,
+								and currentChannel.schema.providedSchema == schema.providedSchema,
 							"Cannot change schema after passing it to useChannel"
 						)
 					end
@@ -313,7 +402,7 @@ local function BaseProvider(props: {
 					for _, serializedEvent in currentChannel.pendingServerEvents do
 						local event = Serializers.deserialize(
 							serializedEvent.event,
-							schema.serializers and schema.serializers.eventSerializer
+							schema.providedSchema and schema.providedSchema.eventSerializer
 						)
 
 						currentChannel.serverState.state = schema.processEvent(
@@ -342,7 +431,7 @@ local function BaseProvider(props: {
 
 					currentChannel.locked = false
 
-					return deepFreeze(currentChannelStates)
+					return currentChannelStates
 				end)
 			end
 		end,
@@ -351,27 +440,83 @@ local function BaseProvider(props: {
 
 	-- Don't send the event until we actually connect to something.
 	React.useEffect(function()
-		for channelId, channelState in channelStates do
-			if channelState.serverState ~= nil and channelState.serverState.type == "ready" then
-				assert(channelState.schema ~= nil, "Pending events for channel without schema")
+		local didntSend = {}
 
-				for _, pendingEvent in channelState.pendingEvents do
-					if sentNoncesRef.current[pendingEvent.nonce] then
-						continue
+		for channelId, channelState in channelStates do
+			if channelState.serverState == nil or channelState.serverState.type ~= "ready" then
+				continue
+			end
+
+			assert(channelState.serverState ~= nil, "Luau")
+			assert(channelState.serverState.type == "ready", "Luau")
+			assert(channelState.schema ~= nil, "Pending events for channel without schema")
+
+			local expectedState = channelState.serverState.state
+
+			local shouldSend = getShouldSend(channelState.schema)
+
+			for _, pendingEvent in channelState.pendingEvents do
+				local oldState = expectedState
+				expectedState = channelState.schema.processEvent(expectedState, pendingEvent.event, props.localUserId)
+
+				if sentNoncesRef.current[pendingEvent.nonce] or pendingEvent.sendBlocked then
+					continue
+				end
+
+				if not shouldSend(expectedState, oldState) then
+					table.insert(didntSend, {
+						channelId = channelId,
+						pendingEvent = pendingEvent,
+					})
+
+					continue
+				end
+
+				sentNoncesRef.current[pendingEvent.nonce] = true
+
+				props.sendEventToChannel(
+					channelId,
+					pendingEvent.nonce,
+					Serializers.serialize(
+						pendingEvent.event,
+						channelState.schema.providedSchema and channelState.schema.providedSchema.eventSerializer
+					)
+				)
+			end
+		end
+
+		if #didntSend > 0 then
+			setChannelStates(function(currentChannelStates)
+				local newChannelStates = table.clone(currentChannelStates)
+
+				for _, info in didntSend do
+					if newChannelStates[info.channelId] == currentChannelStates[info.channelId] then
+						newChannelStates[info.channelId] = table.clone(newChannelStates[info.channelId])
+						newChannelStates[info.channelId].pendingEvents =
+							table.clone(newChannelStates[info.channelId].pendingEvents)
 					end
 
-					sentNoncesRef.current[pendingEvent.nonce] = true
+					local pendingEventIndex
+					for index, pendingEvent in newChannelStates[info.channelId].pendingEvents do
+						if pendingEvent == info.pendingEvent then
+							pendingEventIndex = index
+							break
+						end
+					end
 
-					props.sendEventToChannel(
-						channelId,
-						pendingEvent.nonce,
-						Serializers.serialize(
-							pendingEvent.event,
-							channelState.schema.serializers and channelState.schema.serializers.eventSerializer
-						)
+					assert(
+						pendingEventIndex ~= nil,
+						"Couldn't find pending event index of queued pending event that didn't send"
 					)
+
+					local newPendingEvent =
+						table.clone(newChannelStates[info.channelId].pendingEvents[pendingEventIndex])
+					newPendingEvent.sendBlocked = true
+					newChannelStates[info.channelId].pendingEvents[pendingEventIndex] = newPendingEvent
 				end
-			end
+
+				return shiftSendBlocked(props.localUserId, newChannelStates)
+			end)
 		end
 	end, { channelStates })
 

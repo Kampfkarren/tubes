@@ -10,7 +10,7 @@ Tubes.RemoteProvider = require(script.RemoteProvider)
 Tubes.createNetwork = require(script.createNetwork)
 Tubes.createMockNetwork = require(script.createMockNetwork)
 
-export type ChannelSerializers<ServerState, ServerStateSerialized, Event, EventSerialized> = Types.ChannelSerializers<
+export type ChannelSchema<ServerState, ServerStateSerialized, Event, EventSerialized> = Types.ChannelSchema<
 	ServerState,
 	ServerStateSerialized,
 	Event,

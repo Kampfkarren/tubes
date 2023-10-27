@@ -16,8 +16,7 @@ local function useChannel<ServerState, Event>(
 	channelId: string?,
 	processEvent: Types.ProcessEvent<ServerState, Event>,
 	initialState: ServerState?,
-	-- TODO: Change to schemas and have an equality check parameter that lets you decide when the event sends to the server
-	serializers: Types.ChannelSerializers<ServerState, unknown, Event, unknown>?
+	schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
 ): (ServerState?, (
 	Event | Types.StatefulEventCallback<ServerState, Event>
 ) -> ())
@@ -52,7 +51,7 @@ local function useChannel<ServerState, Event>(
 		if channelId ~= nil then
 			return context.lock(channelId, {
 				processEvent = processEvent,
-				serializers = serializers,
+				providedSchema = schema,
 			})
 		end
 

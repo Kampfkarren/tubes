@@ -12,12 +12,13 @@ type Destructor = () -> ()
 
 export type ChannelSchema<ServerState, Event> = {
 	processEvent: Types.ProcessEvent<ServerState, Event>,
-	serializers: Types.ChannelSerializers<ServerState, any, Event, any>?,
+	providedSchema: Types.ChannelSchema<ServerState, any, Event, any>?,
 }
 
 export type PendingEvent<Event> = {
 	event: Event,
 	nonce: string,
+	sendBlocked: boolean?,
 }
 
 export type ChannelState<ServerState, Event> = {
@@ -67,7 +68,6 @@ local default: ContextType = {
 	localUserId = if LocalPlayer then LocalPlayer.UserId else 1,
 	channelStates = {},
 	sendEventToChannel = nil :: never,
-	setChannelSchema = nil :: never,
 	lock = nil :: never,
 }
 

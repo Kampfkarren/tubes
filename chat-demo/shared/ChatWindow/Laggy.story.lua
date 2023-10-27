@@ -12,7 +12,7 @@ return function(target)
 	local network, provider = Tubes.createMockNetwork()
 	network.ping = 0.5
 
-	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
+	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.schema)
 	channel:addLocalPlayer()
 
 	channel:sendEvent({

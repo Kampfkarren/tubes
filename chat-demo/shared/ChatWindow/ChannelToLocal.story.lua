@@ -11,7 +11,7 @@ local e = React.createElement
 return function(target)
 	local network, provider = Tubes.createMockNetwork()
 
-	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.serializers)
+	local channel = network:createChannel(ServerState.process, ServerState.defaultState, ServerState.schema)
 	channel:addLocalPlayer()
 	channel:sendEvent({
 		type = "addMember",

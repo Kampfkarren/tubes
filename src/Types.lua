@@ -9,9 +9,11 @@ export type Serializer<T, TSerialized...> = {
 	deserialize: (TSerialized...) -> T,
 }
 
-export type ChannelSerializers<ServerState, ServerStateSerialized, Event, EventSerialized> = {
+export type ChannelSchema<ServerState, ServerStateSerialized, Event, EventSerialized> = {
 	eventSerializer: Serializer<Event, EventSerialized>?,
 	stateSerializer: Serializer<ServerState, ServerStateSerialized>?,
+
+	shouldSend: ((newState: ServerState, oldState: ServerState) -> boolean)?,
 }
 
 -- These take in a message and Rust-style format strings.
