@@ -96,8 +96,6 @@ local function shiftSendBlocked(userId: number, channelStates: ChannelStates): C
 				continue
 			end
 
-			logger.debug("{:?} wasn't going to send, and still won't", blockedPendingEvent.event)
-
 			currentState = stateAfterUpdate
 		end
 
