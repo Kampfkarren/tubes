@@ -16,7 +16,7 @@ local function useChannel<ServerState, Event>(
 	channelId: string?,
 	processEvent: Types.ProcessEvent<ServerState, Event>,
 	initialState: ServerState?,
-	schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
+	schema: Types.ChannelSchema<ServerState, any, Event, any>?
 ): (ServerState?, (
 	Event | Types.StatefulEventCallback<ServerState, Event>
 ) -> ())
