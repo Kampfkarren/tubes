@@ -84,8 +84,7 @@ local function shiftSendBlocked(userId: number, channelStates: ChannelStates): C
 		while #newChannelState.pendingEvents > 0 and newChannelState.pendingEvents[1].sendBlocked do
 			local blockedPendingEvent = assert(table.remove(newChannelState.pendingEvents, 1), "Luau")
 
-			local stateAfterUpdate =
-				channelState.schema.processEvent(channelState.serverState.state, blockedPendingEvent.event, userId)
+			local stateAfterUpdate = channelState.schema.processEvent(currentState, blockedPendingEvent.event, userId)
 
 			if shouldSend(stateAfterUpdate, currentState) then
 				logger.warn(
@@ -141,6 +140,7 @@ local function BaseProvider(props: {
 		{}
 	)
 
+	-- TODO: This doesn't work with multiple channels that reuse nonces.
 	local sentNoncesRef = React.useRef({} :: { [string]: boolean })
 	assert(sentNoncesRef.current ~= nil, "Luau")
 
@@ -210,7 +210,9 @@ local function BaseProvider(props: {
 
 		local disconnectOnReceiveMessageSuccessCallback = props.onReceiveMessageSuccessCallback(
 			function(channelId, nonce)
-				sentNoncesRef.current[nonce] = nil
+				-- TODO: Bring this back, it needs to be done after we're confident the nonce is no longer there.
+				-- Check in a useEffect.
+				-- sentNoncesRef.current[nonce] = nil
 
 				setChannelStates(function(currentChannelStates)
 					currentChannelStates = table.clone(currentChannelStates)
@@ -318,18 +320,18 @@ local function BaseProvider(props: {
 
 					assert(currentState.schema ~= nil, "Channel schema doesn't exist")
 
-					callStatefulEventCallback(
-						event,
-						currentState.serverState.state :: ServerState,
-						function(queuedEvent)
-							table.insert(currentState.pendingEvents, {
-								event = queuedEvent,
-								nonce = nextNonce(),
-							})
-						end,
-						currentState.schema.processEvent :: any,
-						props.localUserId
-					)
+					local predictedState = currentState.serverState.state
+					for _, pendingEvent in currentState.pendingEvents do
+						predictedState =
+							currentState.schema.processEvent(predictedState, pendingEvent.event, props.localUserId)
+					end
+
+					callStatefulEventCallback(event, predictedState :: ServerState, function(queuedEvent)
+						table.insert(currentState.pendingEvents, {
+							event = queuedEvent,
+							nonce = nextNonce(),
+						})
+					end, currentState.schema.processEvent :: any, props.localUserId)
 				else
 					table.insert(currentState.pendingEvents, {
 						event = event,
@@ -509,6 +511,8 @@ local function BaseProvider(props: {
 
 					local newPendingEvent =
 						table.clone(newChannelStates[info.channelId].pendingEvents[pendingEventIndex])
+					-- TODO: Reuse nonce? I'm thinking a table that we pop from until its empty before making a new nonce.
+					-- Otherwise nonces get unnecessarily big faster.
 					newPendingEvent.sendBlocked = true
 					newChannelStates[info.channelId].pendingEvents[pendingEventIndex] = newPendingEvent
 				end
