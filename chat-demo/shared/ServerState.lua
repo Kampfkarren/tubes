@@ -40,6 +40,7 @@ ServerState.defaultState = serverState({
 function ServerState.process(state: ServerState, event: Event, userId: number?): ServerState
 	if event.type == "addMember" then
 		assert(userId == nil, "Client cannot send addMember")
+		assert(state.members[tostring(event.userId)] == nil, "addMember called for member that already exists")
 
 		state = table.clone(state)
 		state.members = table.clone(state.members)

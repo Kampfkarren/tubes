@@ -120,10 +120,12 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			assert(not localPlayerAdded, "addLocalPlayer called twice")
 			localPlayerAdded = true
 
+			local initialState = channel.state
+
 			afterPing(function()
 				signals.initialStateSignal.fire(
 					channel.id,
-					Serializers.serialize(channel.state, schema and schema.stateSerializer)
+					Serializers.serialize(initialState, schema and schema.stateSerializer)
 				)
 			end)
 		end
