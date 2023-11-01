@@ -1,6 +1,5 @@
--- Not space (the actual earliest ASCII) for making easier debugging
-local EARLIEST_ASCII = 33 -- Exclamation mark
-local LATEST_ASCII = 126 -- Tilde
+local EARLIEST_ASCII = 0
+local LATEST_ASCII = 255
 
 local function nonceToString(nonce: number): string
 	local nonceString = ""
