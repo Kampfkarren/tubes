@@ -107,10 +107,18 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 		local function afterPing(callback: () -> ())
 			local delayTask
-			delayTask = task.delay(network.ping, function()
-				callback()
-				tasks[delayTask] = nil
-			end)
+
+			if network.ping == 0 then
+				delayTask = task.defer(function()
+					callback()
+					tasks[delayTask] = nil
+				end)
+			else
+				delayTask = task.delay(network.ping, function()
+					callback()
+					tasks[delayTask] = nil
+				end)
+			end
 
 			tasks[delayTask] = true
 		end
@@ -168,7 +176,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 
 			channel.onReceiveEvent:Fire(event)
 
-			task.delay(network.ping, function()
+			afterPing(function()
 				local deserializedEvent = Serializers.deserialize(event, schema and schema.eventSerializer)
 
 				if shouldErrorCallback(deserializedEvent) then
