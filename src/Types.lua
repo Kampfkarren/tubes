@@ -1,3 +1,17 @@
+export type Channel<ServerState, Event> = {
+	id: string,
+	state: ServerState,
+
+	addPlayer: (self: Channel<ServerState, Event>, player: Player) -> (),
+	removePlayer: (self: Channel<ServerState, Event>, player: Player) -> (),
+
+	destroy: (self: Channel<ServerState, Event>) -> (),
+	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
+
+	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: unknown) -> (),
+	_players: { [Player]: true },
+}
+
 export type ProcessEvent<ServerState, Event> = (
 	currentState: ServerState,
 	event: Event,
@@ -29,5 +43,7 @@ export type StatefulEventCallback<ServerState, Event> = (
 	serverState: ServerState,
 	queueEvent: (Event) -> ServerState
 ) -> ()
+
+export type SendEvent<ServerState, Event> = (Event | StatefulEventCallback<ServerState, Event>) -> ()
 
 return {}

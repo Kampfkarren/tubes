@@ -17,9 +17,7 @@ local function useChannel<ServerState, Event>(
 	processEvent: Types.ProcessEvent<ServerState, Event>,
 	initialState: ServerState?,
 	schema: Types.ChannelSchema<ServerState, any, Event, any>?
-): (ServerState?, (
-	Event | Types.StatefulEventCallback<ServerState, Event>
-) -> ())
+): (ServerState?, Types.SendEvent<ServerState, Event>)
 	local context = React.useContext(Context)
 
 	assert(channelId == nil or not context.default, "Tubes context is not provided, but a channel ID is.")

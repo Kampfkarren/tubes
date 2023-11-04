@@ -15,23 +15,9 @@ type Network = {
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
 		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
-	) -> Channel<ServerState, Event>,
+	) -> Types.Channel<ServerState, Event>,
 
 	setLogger: (self: Network, logger: Types.Logger) -> (),
-}
-
-type Channel<ServerState, Event> = {
-	id: string,
-	state: ServerState,
-
-	addPlayer: (self: Channel<ServerState, Event>, player: Player) -> (),
-	removePlayer: (self: Channel<ServerState, Event>, player: Player) -> (),
-
-	destroy: (self: Channel<ServerState, Event>) -> (),
-	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
-
-	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: unknown) -> (),
-	_players: { [Player]: true },
 }
 
 -- You may only call this once per place.
@@ -44,7 +30,7 @@ local function createNetwork(): Network
 	local remoteEvent = Remote.getOrCreateRemoteEvent()
 	local logger = createLogger("Network")
 
-	local channels: { [string]: Channel<any, any> } = {}
+	local channels: { [string]: Types.Channel<any, any> } = {}
 	local channelNonce = 0
 
 	remoteEvent.OnServerEvent:Connect(function(player: Player, channelId: string, nonce: string, ...)
@@ -81,7 +67,7 @@ local function createNetwork(): Network
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
 		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
-	): Channel<ServerState, Event>
+	): Types.Channel<ServerState, Event>
 		local destroyed = false
 
 		local channel = {}
@@ -96,7 +82,7 @@ local function createNetwork(): Network
 			remoteEvent:FireClient(player, packetType, channel.id, ...)
 		end
 
-		function channel.addPlayer(self: Channel<ServerState, Event>, player: Player)
+		function channel.addPlayer(self: Types.Channel<ServerState, Event>, player: Player)
 			assert(not self._players[player], "Player is already in channel")
 			self._players[player] = true
 			sendRemote(
@@ -106,7 +92,7 @@ local function createNetwork(): Network
 			)
 		end
 
-		function channel.removePlayer(self: Channel<ServerState, Event>, player: Player)
+		function channel.removePlayer(self: Types.Channel<ServerState, Event>, player: Player)
 			if not self._players[player] then
 				return
 			end
@@ -115,7 +101,7 @@ local function createNetwork(): Network
 			sendRemote(player, Remote.clientPacketTypeDisconnect)
 		end
 
-		function channel.sendEvent(_: Channel<ServerState, Event>, event: Event)
+		function channel.sendEvent(_: Types.Channel<ServerState, Event>, event: Event)
 			assert(not destroyed, "Channel has been destroyed")
 			channel.state = processEvent(channel.state, event)
 
@@ -129,13 +115,13 @@ local function createNetwork(): Network
 			end
 		end
 
-		function channel.destroy(_: Channel<ServerState, Event>)
+		function channel.destroy(_: Types.Channel<ServerState, Event>)
 			destroyed = true
 			channels[channel.id] = nil
 		end
 
 		function channel._receiveMessage(
-			_: Channel<ServerState, Event>,
+			_: Types.Channel<ServerState, Event>,
 			player: Player,
 			nonce: string,
 			eventSerialized: unknown
