@@ -14,7 +14,7 @@ local createQueuedSignal = require(Tubes.createQueuedSignal)
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
 
-type Network = {
+export type Network = {
 	createChannel: <ServerState, Event>(
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
@@ -26,7 +26,7 @@ type Network = {
 	ping: number,
 }
 
-type Channel<ServerState, Event> = {
+export type Channel<ServerState, Event> = {
 	id: string,
 	state: ServerState,
 
