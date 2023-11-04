@@ -3,6 +3,8 @@ local Tubes = {}
 local Types = require(script.Types)
 
 Tubes.useChannel = require(script.useChannel)
+
+Tubes.useIsChannelLoaded = require(script.useIsChannelIdLoaded)
 Tubes.useLocalUserId = require(script.useLocalUserId)
 
 Tubes.RemoteProvider = require(script.RemoteProvider)
