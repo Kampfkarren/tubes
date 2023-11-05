@@ -68,18 +68,31 @@ local function useChannel<ServerState, Event>(
 		context.sendEventToChannel(channelId, event)
 	end, { channelId })
 
-	if channelId == nil then
-		return localState, sendLocalEvent
-	elseif channelState == nil or channelState.serverState == nil or channelState.serverState.type ~= "ready" then
-		return nil, sendEvent
-	else
-		local state = channelState.serverState.state
+	local predictedState = React.useMemo(function(): ServerState?
+		if channelState == nil then
+			return nil
+		end
+
+		local serverState = channelState.serverState
+		if serverState == nil or serverState.type ~= "ready" then
+			return nil
+		end
+
+		local state = serverState.state
 
 		for _, pendingEvent in channelState.pendingEvents do
 			state = processEvent(state, pendingEvent.event, context.localUserId)
 		end
 
-		return state, sendEvent
+		return state
+	end, { channelState and channelState.serverState })
+
+	if channelId == nil then
+		return localState, sendLocalEvent
+	elseif channelState == nil or channelState.serverState == nil or channelState.serverState.type ~= "ready" then
+		return nil, sendEvent
+	else
+		return predictedState, sendEvent
 	end
 end
 
