@@ -1,3 +1,7 @@
+local Tubes = script.Parent
+
+local Signal = require(Tubes.Signal)
+
 export type Channel<ServerState, Event> = {
 	id: string,
 	state: ServerState,
@@ -7,6 +11,8 @@ export type Channel<ServerState, Event> = {
 
 	destroy: (self: Channel<ServerState, Event>) -> (),
 	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
+
+	onReceiveEvent: Signal.Signal<Player, Event>,
 
 	_receiveMessage: (self: Channel<ServerState, Event>, player: Player, nonce: string, event: unknown) -> (),
 	_players: { [Player]: true },

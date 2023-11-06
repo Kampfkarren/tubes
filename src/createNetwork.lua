@@ -5,6 +5,7 @@ local Tubes = script.Parent
 
 local Remote = require(Tubes.Remote)
 local Serializers = require(Tubes.Serializers)
+local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
 local createLogger = require(Tubes.createLogger)
 local getShouldSend = require(Tubes.getShouldSend)
@@ -76,6 +77,7 @@ local function createNetwork(): Network
 
 		channelNonce += 1
 		channel.id = nonceToString(channelNonce)
+		channel.onReceiveEvent = Signal.new() :: Signal.Signal<Player, Event>
 
 		channel.state = defaultState
 
@@ -183,6 +185,8 @@ local function createNetwork(): Network
 					)
 				end
 			end
+
+			channel.onReceiveEvent:Fire(player, event)
 		end
 
 		channels[channel.id] = channel
