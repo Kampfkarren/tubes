@@ -7,6 +7,7 @@ local Remote = require(Tubes.Remote)
 local Serializers = require(Tubes.Serializers)
 local Types = require(Tubes.Types)
 local createLogger = require(Tubes.createLogger)
+local getShouldSend = require(Tubes.getShouldSend)
 local nonceToString = require(Tubes.nonceToString)
 
 type Network = {
@@ -14,7 +15,7 @@ type Network = {
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, any, Event, any>?
 	) -> Types.Channel<ServerState, Event>,
 
 	setLogger: (self: Network, logger: Types.Logger) -> (),
@@ -66,7 +67,7 @@ local function createNetwork(): Network
 		_network: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, any, Event, any>?
 	): Types.Channel<ServerState, Event>
 		local destroyed = false
 
@@ -77,6 +78,8 @@ local function createNetwork(): Network
 		channel.id = nonceToString(channelNonce)
 
 		channel.state = defaultState
+
+		local shouldSend = getShouldSend(schema)
 
 		local function sendRemote(player: Player, packetType: string, ...)
 			remoteEvent:FireClient(player, packetType, channel.id, ...)
@@ -103,7 +106,14 @@ local function createNetwork(): Network
 
 		function channel.sendEvent(_: Types.Channel<ServerState, Event>, event: Event)
 			assert(not destroyed, "Channel has been destroyed")
-			channel.state = processEvent(channel.state, event)
+
+			local newState = processEvent(channel.state, event)
+			local shouldSendResult = shouldSend(newState, channel.state)
+			channel.state = newState
+
+			if not shouldSendResult then
+				return
+			end
 
 			for player in channel._players do
 				sendRemote(
@@ -158,12 +168,13 @@ local function createNetwork(): Network
 				return
 			end
 
+			local shouldSendResult = shouldSend(result, channel.state)
 			channel.state = result
 
 			for listeningPlayer in channel._players do
 				if listeningPlayer == player then
 					sendRemote(listeningPlayer, Remote.clientPacketTypeReceiveMessageSuccess, nonce)
-				else
+				elseif shouldSendResult then
 					sendRemote(
 						listeningPlayer,
 						Remote.clientPacketTypeReceiveMessage,

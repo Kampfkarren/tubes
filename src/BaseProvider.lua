@@ -8,6 +8,7 @@ local Types = require(Tubes.Types)
 local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
 local createLogger = require(Tubes.createLogger)
 local deepFreeze = require(Tubes.deepFreeze)
+local getShouldSend = require(Tubes.getShouldSend)
 local nonceToString = require(Tubes.nonceToString)
 
 local e = React.createElement
@@ -41,15 +42,6 @@ local function findByNonce<Event>(pendingEvents: { Context.PendingEvent<Event> }
 	error("Received message for unknown nonce")
 end
 
-local function getShouldSend<ServerState>(
-	channelSchema: Context.ChannelSchema<ServerState, unknown>
-): (new: ServerState, old: ServerState) -> boolean
-	return (channelSchema.providedSchema and channelSchema.providedSchema.shouldSend)
-		or function(x, y)
-			return x ~= y
-		end :: never
-end
-
 type ChannelStates = { [string]: Context.ChannelState<unknown, unknown> }
 
 local function shiftSendBlocked(userId: number, channelStates: ChannelStates): ChannelStates
@@ -67,7 +59,7 @@ local function shiftSendBlocked(userId: number, channelStates: ChannelStates): C
 
 		assert(channelState.schema ~= nil, "Channel has no schema, but does have pending events and a server state")
 
-		local shouldSend = getShouldSend(channelState.schema)
+		local shouldSend = getShouldSend(channelState.schema.providedSchema)
 
 		if not changed then
 			changed = true
@@ -453,7 +445,7 @@ local function BaseProvider(props: {
 
 			local expectedState = channelState.serverState.state
 
-			local shouldSend = getShouldSend(channelState.schema)
+			local shouldSend = getShouldSend(channelState.schema.providedSchema)
 
 			for _, pendingEvent in channelState.pendingEvents do
 				local oldState = expectedState

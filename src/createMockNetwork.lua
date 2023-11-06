@@ -10,6 +10,7 @@ local Serializers = require(Tubes.Serializers)
 local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
 local createQueuedSignal = require(Tubes.createQueuedSignal)
+local getShouldSend = require(Tubes.getShouldSend)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
@@ -19,7 +20,7 @@ export type Network = {
 		self: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, any, Event, any>?
 	) -> Channel<ServerState, Event>,
 
 	localUserId: number,
@@ -94,7 +95,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		_: Network,
 		processEvent: Types.ProcessEvent<ServerState, Event>,
 		defaultState: ServerState,
-		schema: Types.ChannelSchema<ServerState, unknown, Event, unknown>?
+		schema: Types.ChannelSchema<ServerState, any, Event, any>?
 	): Channel<ServerState, Event>
 		local channel = {}
 
@@ -102,6 +103,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		channel.state = defaultState
 
 		channel.onReceiveEvent = Signal.new()
+
+		local shouldSend = getShouldSend(schema)
 
 		local tasks: { [thread]: true } = {}
 
@@ -148,8 +151,12 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		end
 
 		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?)
-			channel.state = processEvent(channel.state, event, userId)
-			if localPlayerAdded then
+			local newState = processEvent(channel.state, event, userId)
+			local shouldSendResult = shouldSend(newState, channel.state)
+
+			channel.state = newState
+
+			if localPlayerAdded and shouldSendResult then
 				afterPing(function()
 					signals.receiveMessageSignal.fire(
 						channel.id,
