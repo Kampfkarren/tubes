@@ -267,11 +267,7 @@ local function BaseProvider(props: {
 				local currentState = currentChannelStates[channelId]
 				assert(currentState ~= nil, "Received message for unknown channel")
 
-				currentState = table.clone(currentState)
-				currentState.serverState = nil
-				currentState.pendingServerEvents = {}
-
-				currentChannelStates[channelId] = currentState
+				currentChannelStates[channelId] = nil
 
 				return deepFreeze(currentChannelStates)
 			end)
@@ -415,6 +411,9 @@ local function BaseProvider(props: {
 			return function()
 				setChannelStates(function(currentChannelStates)
 					currentChannelStates = table.clone(currentChannelStates)
+					if currentChannelStates[channelId] == nil then
+						return currentChannelStates
+					end
 
 					local currentChannel = table.clone(currentChannelStates[channelId])
 					currentChannelStates[channelId] = currentChannel
