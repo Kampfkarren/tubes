@@ -106,7 +106,7 @@ local function createNetwork(): Network
 			sendRemote(player, Remote.clientPacketTypeDisconnect)
 		end
 
-		function channel.sendEvent(_: Types.Channel<ServerState, Event>, event: Event)
+		function channel.sendEvent(_: Types.Channel<ServerState, Event>, event: Event): ServerState
 			assert(not destroyed, "Channel has been destroyed")
 
 			local newState = processEvent(channel.state, event)
@@ -114,7 +114,7 @@ local function createNetwork(): Network
 			channel.state = newState
 
 			if not shouldSendResult then
-				return
+				return newState
 			end
 
 			for player in channel._players do
@@ -125,6 +125,8 @@ local function createNetwork(): Network
 					Serializers.serialize(event, schema and schema.eventSerializer)
 				)
 			end
+
+			return newState
 		end
 
 		function channel.destroy(_: Types.Channel<ServerState, Event>)

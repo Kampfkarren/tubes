@@ -10,7 +10,7 @@ export type Channel<ServerState, Event> = {
 	removePlayer: (self: Channel<ServerState, Event>, player: Player) -> (),
 
 	destroy: (self: Channel<ServerState, Event>) -> (),
-	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> (),
+	sendEvent: (self: Channel<ServerState, Event>, event: Event) -> ServerState,
 
 	onReceiveEvent: Signal.Signal<Player, Event>,
 

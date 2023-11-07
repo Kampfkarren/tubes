@@ -34,7 +34,7 @@ export type Channel<ServerState, Event> = {
 	addLocalPlayer: (self: Channel<ServerState, Event>) -> (),
 	removeLocalPlayer: (self: Channel<ServerState, Event>) -> (),
 
-	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> (),
+	sendEvent: (self: Channel<ServerState, Event>, event: Event, userId: number?) -> ServerState,
 
 	setShouldErrorCallback: (self: Channel<ServerState, Event>, (event: Event) -> boolean) -> (),
 
@@ -150,7 +150,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 			end)
 		end
 
-		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?)
+		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?): ServerState
 			local newState = processEvent(channel.state, event, userId)
 			local shouldSendResult = shouldSend(newState, channel.state)
 
@@ -165,6 +165,8 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 					)
 				end)
 			end
+
+			return newState
 		end
 
 		local shouldErrorCallback = function(_: Event)
