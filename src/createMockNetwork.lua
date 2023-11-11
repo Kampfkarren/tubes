@@ -9,11 +9,14 @@ local BaseProvider = require(Tubes.BaseProvider)
 local Serializers = require(Tubes.Serializers)
 local Signal = require(Tubes.Signal)
 local Types = require(Tubes.Types)
+local createLogger = require(Tubes.createLogger)
 local createQueuedSignal = require(Tubes.createQueuedSignal)
 local getShouldSend = require(Tubes.getShouldSend)
 
 local e = React.createElement
 local LocalPlayer = Players.LocalPlayer
+
+local logger = createLogger("createMockNetwork")
 
 export type Network = {
 	createChannel: <ServerState, Event>(
@@ -151,7 +154,12 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 		end
 
 		channel.sendEvent = function(_: Channel<ServerState, Event>, event: Event, userId: number?): ServerState
-			local newState = processEvent(channel.state, event, userId)
+			local success, newState = pcall(processEvent, channel.state, event, userId)
+			if not success then
+				logger.warn("Event sent by {} resulted in an error:\n{}\nEvent: {}", userId, newState, event)
+				return newState
+			end
+
 			local shouldSendResult = shouldSend(newState, channel.state)
 
 			channel.state = newState
@@ -193,7 +201,13 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 					return
 				end
 
-				channel.state = processEvent(channel.state, deserializedEvent, network.localUserId)
+				local success, newState = pcall(processEvent, channel.state, deserializedEvent, network.localUserId)
+				if not success then
+					logger.warn("Event received resulted in an error:\n{}\nEvent: {:?}", newState, event)
+					return
+				end
+
+				channel.state = newState
 
 				signals.receiveMessageSuccessSignal.fire(channel.id, nonce)
 			end)

@@ -5,6 +5,7 @@ local React = require(Tubes.Parent.React)
 local Context = require(Tubes.Context)
 local Types = require(Tubes.Types)
 local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
+local safeProcessEvent = require(Tubes.safeProcessEvent)
 
 -- You are allowed to change channelId at runtime, but the resulting
 -- state will not be updated immediately.
@@ -26,19 +27,23 @@ local function useChannel<ServerState, Event>(
 	local localState, setLocalState = React.useState(initialState)
 
 	local sendLocalEvent = React.useCallback(function(event: Event | Types.StatefulEventCallback<ServerState, Event>)
+		local wrappedSafeProcessEvent = function(state: ServerState, sentEvent: Event, userId: number?)
+			return (safeProcessEvent(state, sentEvent, processEvent, userId))
+		end
+
 		if typeof(event) == "function" then
 			setLocalState(function(currentLocalState)
 				return callStatefulEventCallback(
 					event,
 					currentLocalState,
 					function() end,
-					processEvent,
+					wrappedSafeProcessEvent,
 					context.localUserId
 				)
 			end)
 		else
 			setLocalState(function(currentLocalState)
-				return processEvent(currentLocalState, event, context.localUserId)
+				return wrappedSafeProcessEvent(currentLocalState, event, context.localUserId)
 			end)
 		end
 	end, {})
@@ -81,7 +86,7 @@ local function useChannel<ServerState, Event>(
 		local state = serverState.state
 
 		for _, pendingEvent in channelState.pendingEvents do
-			state = processEvent(state, pendingEvent.event, context.localUserId)
+			state = safeProcessEvent(state, pendingEvent.event, processEvent, context.localUserId)
 		end
 
 		return state

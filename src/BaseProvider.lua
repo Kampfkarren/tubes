@@ -10,6 +10,7 @@ local createLogger = require(Tubes.createLogger)
 local deepFreeze = require(Tubes.deepFreeze)
 local getShouldSend = require(Tubes.getShouldSend)
 local nonceToString = require(Tubes.nonceToString)
+local safeProcessEvent = require(Tubes.safeProcessEvent)
 
 local e = React.createElement
 
@@ -76,7 +77,8 @@ local function shiftSendBlocked(userId: number, channelStates: ChannelStates): C
 		while #newChannelState.pendingEvents > 0 and newChannelState.pendingEvents[1].sendBlocked do
 			local blockedPendingEvent = assert(table.remove(newChannelState.pendingEvents, 1), "Luau")
 
-			local stateAfterUpdate = channelState.schema.processEvent(currentState, blockedPendingEvent.event, userId)
+			local stateAfterUpdate =
+				safeProcessEvent(currentState, blockedPendingEvent.event, channelState.schema.processEvent, userId)
 
 			if shouldSend(stateAfterUpdate, currentState) then
 				logger.warn(
@@ -185,12 +187,13 @@ local function BaseProvider(props: {
 					)
 
 					currentState.serverState = table.clone(currentState.serverState)
-					currentState.serverState.state = currentState.schema.processEvent(
+					currentState.serverState.state = safeProcessEvent(
 						currentState.serverState.state,
 						Serializers.deserialize(
 							event,
 							currentState.schema.providedSchema and currentState.schema.providedSchema.eventSerializer
 						),
+						currentState.schema.processEvent,
 						userId
 					)
 				end
@@ -225,8 +228,12 @@ local function BaseProvider(props: {
 					table.remove(currentState.pendingEvents, index)
 
 					currentState.serverState = table.clone(currentState.serverState)
-					currentState.serverState.state =
-						currentState.schema.processEvent(currentState.serverState.state, event, props.localUserId)
+					currentState.serverState.state = safeProcessEvent(
+						currentState.serverState.state,
+						event,
+						currentState.schema.processEvent,
+						props.localUserId
+					)
 
 					currentChannelStates[channelId] = currentState
 
@@ -310,8 +317,16 @@ local function BaseProvider(props: {
 
 					local predictedState = currentState.serverState.state
 					for _, pendingEvent in currentState.pendingEvents do
-						predictedState =
-							currentState.schema.processEvent(predictedState, pendingEvent.event, props.localUserId)
+						predictedState = safeProcessEvent(
+							predictedState,
+							pendingEvent.event,
+							currentState.schema.processEvent,
+							props.localUserId
+						)
+					end
+
+					local wrappedSafeProcessEvent = function(state, sentEvent, userId: number?)
+						return (safeProcessEvent(state, sentEvent, currentState.schema.processEvent, userId))
 					end
 
 					callStatefulEventCallback(event, predictedState :: ServerState, function(queuedEvent)
@@ -319,7 +334,7 @@ local function BaseProvider(props: {
 							event = queuedEvent,
 							nonce = nextNonce(),
 						})
-					end, currentState.schema.processEvent :: any, props.localUserId)
+					end, wrappedSafeProcessEvent :: any, props.localUserId)
 				else
 					table.insert(currentState.pendingEvents, {
 						event = event,
@@ -393,9 +408,10 @@ local function BaseProvider(props: {
 							schema.providedSchema and schema.providedSchema.eventSerializer
 						)
 
-						currentChannel.serverState.state = schema.processEvent(
+						currentChannel.serverState.state = safeProcessEvent(
 							currentChannel.serverState.state :: ServerState,
 							event,
+							schema.processEvent,
 							serializedEvent.userId
 						)
 					end
@@ -448,7 +464,23 @@ local function BaseProvider(props: {
 
 			for _, pendingEvent in channelState.pendingEvents do
 				local oldState = expectedState
-				expectedState = channelState.schema.processEvent(expectedState, pendingEvent.event, props.localUserId)
+				local newState, success = safeProcessEvent(
+					expectedState,
+					pendingEvent.event,
+					channelState.schema.processEvent,
+					props.localUserId
+				)
+
+				if not success then
+					table.insert(didntSend, {
+						channelId = channelId,
+						pendingEvent = pendingEvent,
+					})
+
+					continue
+				end
+
+				expectedState = newState
 
 				if sentNoncesRef.current[pendingEvent.nonce] or pendingEvent.sendBlocked then
 					continue
