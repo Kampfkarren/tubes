@@ -204,6 +204,7 @@ local function createMockNetwork(): (Network, React.ComponentType<{
 				local success, newState = pcall(processEvent, channel.state, deserializedEvent, network.localUserId)
 				if not success then
 					logger.warn("Event received resulted in an error:\n{}\nEvent: {:?}", newState, event)
+					signals.receiveMessageErrorSignal.fire(channel.id, nonce)
 					return
 				end
 
