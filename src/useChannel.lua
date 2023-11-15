@@ -90,7 +90,7 @@ local function useChannel<ServerState, Event>(
 		end
 
 		return state
-	end, { channelState and channelState.serverState })
+	end, { channelState and channelState.serverState, channelState and channelState.pendingEvents } :: { unknown })
 
 	if channelId == nil then
 		return localState, sendLocalEvent
