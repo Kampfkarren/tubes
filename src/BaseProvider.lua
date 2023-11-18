@@ -295,7 +295,10 @@ local function BaseProvider(props: {
 				currentChannelStates = table.clone(currentChannelStates)
 
 				local currentState = currentChannelStates[channelId]
-				assert(currentState ~= nil, "sendEventToChannel called for unknown channel")
+				if currentState == nil then
+					logger.warn("sendEventToChannel called for unknown channel. Event: {:?}", event)
+					return currentChannelStates
+				end
 
 				currentState = table.clone(currentState)
 
