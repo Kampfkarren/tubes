@@ -3,6 +3,7 @@ local Tubes = script.Parent
 local React = require(Tubes.Parent.React)
 
 local Context = require(Tubes.Context)
+local Overrides = require(Tubes.Overrides)
 local Types = require(Tubes.Types)
 local callStatefulEventCallback = require(Tubes.callStatefulEventCallback)
 local safeProcessEvent = require(Tubes.safeProcessEvent)
@@ -73,24 +74,29 @@ local function useChannel<ServerState, Event>(
 		context.sendEventToChannel(channelId, event)
 	end, { channelId })
 
-	local predictedState = React.useMemo(function(): ServerState?
-		if channelState == nil then
-			return nil
-		end
+	local predictedState = React.useMemo(
+		function(): ServerState?
+			if channelState == nil then
+				return nil
+			end
 
-		local serverState = channelState.serverState
-		if serverState == nil or serverState.type ~= "ready" then
-			return nil
-		end
+			local serverState = channelState.serverState
+			if serverState == nil or serverState.type ~= "ready" then
+				return nil
+			end
 
-		local state = serverState.state
+			Overrides.onPredictingState:Fire(channelId or "???", channelState.pendingEvents)
 
-		for _, pendingEvent in channelState.pendingEvents do
-			state = safeProcessEvent(state, pendingEvent.event, processEvent, context.localUserId)
-		end
+			local state = serverState.state
 
-		return state
-	end, { channelState and channelState.serverState, channelState and channelState.pendingEvents } :: { unknown })
+			for _, pendingEvent in channelState.pendingEvents do
+				state = safeProcessEvent(state, pendingEvent.event, processEvent, context.localUserId)
+			end
+
+			return state
+		end,
+		{ channelId, channelState and channelState.serverState, channelState and channelState.pendingEvents } :: { unknown }
+	)
 
 	if channelId == nil then
 		return localState, sendLocalEvent

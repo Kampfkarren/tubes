@@ -26,4 +26,6 @@ export type ChannelSchema<ServerState, ServerStateSerialized, Event, EventSerial
 	EventSerialized
 >
 
+Tubes.Overrides = require(script.Overrides)
+
 return Tubes
