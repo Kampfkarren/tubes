@@ -134,12 +134,15 @@ local function BaseProvider(props: {
 		{}
 	)
 
-	-- TODO: This doesn't work with multiple channels that reuse nonces.
-	local sentNoncesRef = React.useRef({} :: { [string]: boolean })
+	-- Channel ID -> nonce -> sent?
+	-- TODO: Remove successfully sent nonces
+	local sentNoncesRef = React.useRef({} :: { [string]: { [string]: boolean } })
 	assert(sentNoncesRef.current ~= nil, "Luau")
 
 	React.useEffect(function()
 		local disconnectOnInitialStateCallback = props.onInitialStateCallback(function(channelId, serverState)
+			sentNoncesRef.current[channelId] = nil
+
 			setChannelStates(function(currentChannelStates)
 				currentChannelStates = table.clone(currentChannelStates)
 
@@ -205,10 +208,6 @@ local function BaseProvider(props: {
 
 		local disconnectOnReceiveMessageSuccessCallback = props.onReceiveMessageSuccessCallback(
 			function(channelId, nonce)
-				-- TODO: Bring this back, it needs to be done after we're confident the nonce is no longer there.
-				-- Check in a useEffect.
-				-- sentNoncesRef.current[nonce] = nil
-
 				setChannelStates(function(currentChannelStates)
 					currentChannelStates = table.clone(currentChannelStates)
 
@@ -451,6 +450,7 @@ local function BaseProvider(props: {
 	-- Don't send the event until we actually connect to something.
 	React.useEffect(function()
 		local didntSend = {}
+		local sentNonces = sentNoncesRef.current
 
 		for channelId, channelState in channelStates do
 			if channelState.serverState == nil or channelState.serverState.type ~= "ready" then
@@ -485,7 +485,10 @@ local function BaseProvider(props: {
 
 				expectedState = newState
 
-				if sentNoncesRef.current[pendingEvent.nonce] or pendingEvent.sendBlocked then
+				if
+					(sentNonces[channelId] ~= nil and sentNonces[channelId][pendingEvent.nonce])
+					or pendingEvent.sendBlocked
+				then
 					continue
 				end
 
@@ -498,7 +501,11 @@ local function BaseProvider(props: {
 					continue
 				end
 
-				sentNoncesRef.current[pendingEvent.nonce] = true
+				if sentNonces[channelId] == nil then
+					sentNonces[channelId] = {}
+				end
+
+				sentNonces[channelId][pendingEvent.nonce] = true
 
 				props.sendEventToChannel(
 					channelId,
