@@ -523,6 +523,10 @@ local function BaseProvider(props: {
 				local newChannelStates = table.clone(currentChannelStates)
 
 				for _, info in didntSend do
+					if newChannelStates[info.channelId] == nil then
+						continue
+					end
+
 					if newChannelStates[info.channelId] == currentChannelStates[info.channelId] then
 						newChannelStates[info.channelId] = table.clone(newChannelStates[info.channelId])
 						newChannelStates[info.channelId].pendingEvents =
