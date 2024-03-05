@@ -295,7 +295,7 @@ local function BaseProvider(props: {
 
 				local currentState = currentChannelStates[channelId]
 				if currentState == nil then
-					logger.warn("sendEventToChannel called for unknown channel. Event: {:?}", event)
+					logger.debug("sendEventToChannel called for unknown channel. Event: {:?}", event)
 					return currentChannelStates
 				end
 
